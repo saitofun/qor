@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	"gorm.io/gorm"
 	"github.com/saitofun/qor/qor"
 	"github.com/saitofun/qor/qor/resource"
 	"github.com/saitofun/qor/qor/utils"
+	"gorm.io/gorm"
 )
 
 // DatetimeConfig meta configuration used for datetime

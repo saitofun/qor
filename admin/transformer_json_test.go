@@ -6,11 +6,11 @@ import (
 	"errors"
 	"testing"
 
-	"gorm.io/gorm"
 	"github.com/jinzhu/now"
 	"github.com/saitofun/qor/admin"
 	. "github.com/saitofun/qor/admin/tests/dummy"
 	"github.com/theplant/testingutils"
+	"gorm.io/gorm"
 )
 
 func TestJSONTransformerEncode(t *testing.T) {

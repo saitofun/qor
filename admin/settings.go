@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"gorm.io/gorm"
 	"github.com/saitofun/qor/qor"
+	"gorm.io/gorm"
 )
 
 // SettingsStorageInterface settings storage interface

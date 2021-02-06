@@ -17,12 +17,12 @@ import (
 	"sort"
 	"strings"
 
-	"gorm.io/gorm"
 	"github.com/jinzhu/inflection"
 	"github.com/saitofun/qor/qor"
 	"github.com/saitofun/qor/qor/utils"
 	"github.com/saitofun/qor/roles"
 	"github.com/saitofun/qor/session"
+	"gorm.io/gorm"
 )
 
 // FuncMap funcs map for current context

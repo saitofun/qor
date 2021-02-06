@@ -1,10 +1,11 @@
 package tencent
 
 import (
-	"testing"
 	"bytes"
-	"io/ioutil"
 	"fmt"
+	"io/ioutil"
+	"testing"
+
 	"github.com/saitofun/qor/oss/tests"
 )
 
@@ -26,7 +27,6 @@ func init() {
 	})
 }
 
-
 func TestClient_Put(t *testing.T) {
 	f, err := ioutil.ReadFile("/home/owen/Downloads/2.png")
 	if err != nil {
@@ -37,9 +37,8 @@ func TestClient_Put(t *testing.T) {
 	client.Put("test.png", bytes.NewReader(f))
 }
 
-
 func TestClient_Put2(t *testing.T) {
-	tests.TestAll(client,t)
+	tests.TestAll(client, t)
 }
 
 func TestClient_Delete(t *testing.T) {

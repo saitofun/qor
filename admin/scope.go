@@ -1,8 +1,8 @@
 package admin
 
 import (
-	"gorm.io/gorm"
 	"github.com/saitofun/qor/qor"
+	"gorm.io/gorm"
 )
 
 // Scope register scope for qor resource

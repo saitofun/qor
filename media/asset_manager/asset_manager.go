@@ -7,9 +7,9 @@ import (
 	"io"
 	"regexp"
 
+	"github.com/saitofun/qor/admin"
 	"github.com/saitofun/qor/media/oss"
 	"github.com/saitofun/qor/qor/resource"
-	"github.com/saitofun/qor/admin"
 	"gorm.io/gorm"
 )
 

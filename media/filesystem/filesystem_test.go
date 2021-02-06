@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/saitofun/qor-utils/test_utils"
 	"github.com/saitofun/qor/media"
 	"github.com/saitofun/qor/media/filesystem"
-	"github.com/saitofun/qor-utils/test_utils"
 	"gorm.io/gorm"
 )
 

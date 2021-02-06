@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/qor/admin"
-	"github.com/qor/qor"
-	"github.com/qor/qor/resource"
-	"github.com/qor/qor/utils"
+	"github.com/saitofun/qor/admin"
+	"github.com/saitofun/qor/qor"
+	"github.com/saitofun/qor/qor/resource"
+	"github.com/saitofun/qor/qor/utils"
 )
 
 // SerializableMetaInterface is a interface defined methods need for a serializable model
@@ -85,7 +85,7 @@ func (serialize *SerializableMeta) SetSerializableArgumentValue(value interface{
 // ConfigureQorResourceBeforeInitialize configure qor resource for qor admin
 func (serialize *SerializableMeta) ConfigureQorResourceBeforeInitialize(res resource.Resourcer) {
 	if res, ok := res.(*admin.Resource); ok {
-		res.GetAdmin().RegisterViewPath("github.com/qor/serializable_meta/views")
+		res.GetAdmin().RegisterViewPath("github.com/saitofun/qor/serializable_meta/views")
 
 		if _, ok := res.Value.(SerializableMetaInterface); ok {
 			res.Meta(&admin.Meta{

@@ -19,10 +19,10 @@ import (
 
 	"github.com/gosimple/slug"
 	"github.com/jinzhu/inflection"
+	"github.com/saitofun/qor/admin"
 	"github.com/saitofun/qor/qor"
 	"github.com/saitofun/qor/qor/resource"
 	"github.com/saitofun/qor/qor/utils"
-	"github.com/saitofun/qor/admin"
 	"gorm.io/gorm"
 )
 
