@@ -4,7 +4,7 @@ import (
 	"github.com/saitofun/qor/qor"
 	"github.com/saitofun/qor/qor/resource"
 	"github.com/saitofun/qor/qor/utils"
-	"gorm.io/gorm"
+	"github.com/saitofun/qor/gorm"
 )
 
 // Filter filter definiation

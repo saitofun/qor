@@ -22,7 +22,7 @@ import (
 	"github.com/saitofun/qor/qor/utils"
 	"github.com/saitofun/qor/roles"
 	"github.com/saitofun/qor/session"
-	"gorm.io/gorm"
+	"github.com/saitofun/qor/gorm"
 )
 
 // FuncMap funcs map for current context

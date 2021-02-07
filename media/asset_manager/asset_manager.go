@@ -10,7 +10,7 @@ import (
 	"github.com/saitofun/qor/admin"
 	"github.com/saitofun/qor/media/oss"
 	"github.com/saitofun/qor/qor/resource"
-	"gorm.io/gorm"
+	"github.com/saitofun/qor/gorm"
 )
 
 // AssetManager defined a asset manager that could be used to manage assets in qor admin

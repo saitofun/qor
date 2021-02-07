@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/saitofun/qor/responder"
-	"gorm.io/gorm"
+	"github.com/saitofun/qor/gorm"
 )
 
 // Controller admin controller

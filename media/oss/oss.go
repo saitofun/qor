@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/saitofun/qor-media"
+	"github.com/saitofun/qor/media"
 	"github.com/saitofun/qor/oss"
 	"github.com/saitofun/qor/oss/filesystem"
 	"github.com/saitofun/qor/qor/utils"

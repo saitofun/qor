@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/saitofun/qor-utils/test_utils"
+	"github.com/saitofun/qor/gorm"
 	"github.com/saitofun/qor/media"
 	"github.com/saitofun/qor/media/filesystem"
-	"gorm.io/gorm"
+	"github.com/saitofun/qor/utils/test_utils"
 )
 
 var db = test_utils.TestDB()

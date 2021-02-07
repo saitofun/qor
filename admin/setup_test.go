@@ -6,7 +6,7 @@ import (
 
 	"github.com/saitofun/qor/admin"
 	. "github.com/saitofun/qor/admin/tests/dummy"
-	"gorm.io/gorm"
+	"github.com/saitofun/qor/gorm"
 )
 
 var (

@@ -11,12 +11,12 @@ import (
 	"strings"
 
 	"github.com/saitofun/qor/admin"
+	"github.com/saitofun/qor/gorm"
 	"github.com/saitofun/qor/media"
 	"github.com/saitofun/qor/media/oss"
 	"github.com/saitofun/qor/qor"
 	"github.com/saitofun/qor/qor/resource"
 	"github.com/saitofun/qor/qor/utils"
-	"gorm.io/gorm"
 )
 
 func init() {

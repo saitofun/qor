@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/saitofun/qor/media/oss"
-	"gorm.io/gorm"
+	"github.com/saitofun/qor/gorm"
 )
 
 type CreditCard struct {

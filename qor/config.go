@@ -1,6 +1,6 @@
 package qor
 
-import "gorm.io/gorm"
+import "github.com/saitofun/qor/gorm"
 
 // Config qor config struct
 type Config struct {

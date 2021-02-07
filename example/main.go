@@ -8,7 +8,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/saitofun/qor/admin"
 	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
+	"github.com/saitofun/qor/gorm"
 )
 
 // Create a GORM-backend model

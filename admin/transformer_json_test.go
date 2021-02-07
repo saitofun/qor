@@ -10,7 +10,7 @@ import (
 	"github.com/saitofun/qor/admin"
 	. "github.com/saitofun/qor/admin/tests/dummy"
 	"github.com/theplant/testingutils"
-	"gorm.io/gorm"
+	"github.com/saitofun/qor/gorm"
 )
 
 func TestJSONTransformerEncode(t *testing.T) {

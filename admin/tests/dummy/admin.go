@@ -8,7 +8,7 @@ import (
 	"github.com/saitofun/qor/media"
 	"github.com/saitofun/qor/qor"
 	"github.com/saitofun/qor/utils/test_utils"
-	"gorm.io/gorm"
+	"github.com/saitofun/qor/gorm"
 )
 
 // NewDummyAdmin generate admin for dummy app

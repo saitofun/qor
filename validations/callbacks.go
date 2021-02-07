@@ -1,13 +1,14 @@
 package validations
 
 import (
+	"errors"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 
 	"github.com/asaskevich/govalidator"
-	// "github.com/jinzhu/gorm"
-	"gorm.io/gorm"
+	"github.com/saitofun/qor/gorm"
 )
 
 var skipValidations = "validations:skip_validations"
@@ -35,74 +36,86 @@ var skipValidations = "validations:skip_validations"
 // 	}
 // }
 
-func flatValidatorErrors(validatorErrors govalidator.Errors) []govalidator.Error {
-	resultErrors := []govalidator.Error{}
-	for _, validatorError := range validatorErrors.Errors() {
-		if errors, ok := validatorError.(govalidator.Errors); ok {
+func flatValidatorErrors(err govalidator.Errors) (ret []govalidator.Error) {
+	for _, v := range err.Errors() {
+		if errors, ok := v.(govalidator.Errors); ok {
 			for _, e := range errors {
-				resultErrors = append(resultErrors, e.(govalidator.Error))
+				ret = append(ret, e.(govalidator.Error))
 			}
-		}
-		if e, ok := validatorError.(govalidator.Error); ok {
-			resultErrors = append(resultErrors, e)
+		} else if e, ok := v.(govalidator.Error); ok {
+			ret = append(ret, e)
 		}
 	}
-	return resultErrors
+	return
 }
 
-func formattedError(err govalidator.Error, resource interface{}) error {
-	message := err.Error()
-	attrName := err.Name
-	if strings.Index(message, "non zero value required") >= 0 {
-		message = fmt.Sprintf("%v can't be blank", attrName)
-	} else if strings.Index(message, "as length") >= 0 {
-		reg, _ := regexp.Compile(`\(([0-9]+)\|([0-9]+)\)`)
-		submatch := reg.FindSubmatch([]byte(err.Error()))
-		message = fmt.Sprintf("%v is the wrong length (should be %v~%v characters)", attrName, string(submatch[1]), string(submatch[2]))
-	} else if strings.Index(message, "as numeric") >= 0 {
-		message = fmt.Sprintf("%v is not a number", attrName)
-	} else if strings.Index(message, "as email") >= 0 {
-		message = fmt.Sprintf("%v is not a valid email address", attrName)
-	}
-	return NewError(resource, attrName, message)
+func formattedError(err govalidator.Error, res interface{}) error {
+	var (
+		msg  = err.Error()
+		name = err.Name
+	)
 
+	if strings.Index(msg, "non zero value required") >= 0 {
+		msg = fmt.Sprintf("%v can't be blank", name)
+	} else if strings.Index(msg, "as length") >= 0 {
+		reg, _ := regexp.Compile(`\(([0-9]+)\|([0-9]+)\)`)
+		sub := reg.FindSubmatch([]byte(err.Error()))
+		msg = fmt.Sprintf("%v is the wrong length (should be %v~%v characters)",
+			name, string(sub[1]), string(sub[2]))
+	} else if strings.Index(msg, "as numeric") >= 0 {
+		msg = fmt.Sprintf("%v is not a number", name)
+	} else if strings.Index(msg, "as email") >= 0 {
+		msg = fmt.Sprintf("%v is not a valid email address", name)
+	}
+	return NewError(res, name, msg)
 }
 
 // RegisterCallbacks register callback into GORM DB
 func RegisterCallbacks(db *gorm.DB) {
-	callback := db.Callback()
-	if callback.Create().Get("validations:validate") == nil {
-		callback.Create().Before("gorm:create").
-			Register("validations:validate", validate)
-	}
-	if callback.Update().Get("validations:validate") == nil {
-		callback.Update().Before("gorm:update").
-			Register("validations:validate", validate)
-	}
+	db.Callback().Create().Before("gorm:create").Replace("validations:validate", validate)
+	db.Callback().Update().Before("gorm:update").Replace("validations:validate", validate)
 }
 
-func validate(scope *gorm.DB) {
-	if _, ok := scope.Get("gorm:update_column"); ok {
+type validator interface {
+	Validate(*gorm.DB)
+}
+
+func validate(db *gorm.DB) {
+	if _, ok := db.Get("gorm:update_column"); ok {
 		return
 	}
-	result, ok := scope.Get(skipValidations)
+	result, ok := db.Get(skipValidations)
 	if ok && result.(bool) {
 		return
 	}
-	if scope.Error != nil {
+	if db.Error != nil {
 		return
 	}
-	val := scope.Statement.Model
-	_, err := govalidator.ValidateStruct(val)
+
+	val := reflect.ValueOf(db.Statement.Model)
+	model := val.Interface()
+	if model == nil {
+		_ = db.AddError(errors.New("model value is nil"))
+		return
+	}
+
+	if v, ok := model.(validator); ok {
+		v.Validate(db)
+		if db.Error != nil {
+			return
+		}
+	}
+	_, err := govalidator.ValidateStruct(model)
+	db.Statement.ReflectValue = reflect.ValueOf(model).Elem()
 	if err == nil {
 		return
 	}
 	errs, ok := err.(govalidator.Errors)
 	if ok {
 		for _, e := range flatValidatorErrors(errs) {
-			scope.AddError(formattedError(e, val))
+			_ = db.AddError(formattedError(e, model))
 		}
 	} else {
-		scope.AddError(err)
+		_ = db.AddError(err)
 	}
 }

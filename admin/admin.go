@@ -13,7 +13,7 @@ import (
 	"github.com/saitofun/qor/session"
 	"github.com/saitofun/qor/session/manager"
 	"github.com/theplant/cldr"
-	"gorm.io/gorm"
+	"github.com/saitofun/qor/gorm"
 )
 
 // AdminConfig admin config struct

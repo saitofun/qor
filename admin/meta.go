@@ -11,7 +11,7 @@ import (
 	"github.com/saitofun/qor/qor/resource"
 	"github.com/saitofun/qor/qor/utils"
 	"github.com/saitofun/qor/roles"
-	"gorm.io/gorm"
+	"github.com/saitofun/qor/gorm"
 )
 
 // MetaConfigInterface meta config interface

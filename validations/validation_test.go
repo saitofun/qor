@@ -3,13 +3,14 @@ package validations_test
 import (
 	"errors"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/asaskevich/govalidator"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/saitofun/qor/gorm"
 	"github.com/saitofun/qor/utils/test_utils"
 	"github.com/saitofun/qor/validations"
-	"gorm.io/gorm"
 )
 
 var db *gorm.DB
@@ -19,7 +20,7 @@ type User struct {
 	Name           string `valid:"required"`
 	Password       string `valid:"length(6|20)"`
 	SecurePassword string `valid:"numeric"`
-	Email          string `valid:"email,uniqEmail~Email already be token"`
+	Email          string `valid:"email~Email already be token"`
 	CompanyID      int
 	Company        Company
 	CreditCard     CreditCard
@@ -31,13 +32,19 @@ func (user *User) Validate(db *gorm.DB) {
 	if user.Name == "invalid" {
 		db.AddError(validations.NewError(user, "Name", "invalid user name"))
 	}
-	govalidator.CustomTypeTagMap.Set("uniqEmail", govalidator.CustomTypeValidator(func(email interface{}, context interface{}) bool {
-		var count int64
-		if db.Model(&User{}).Where("email = ?", email).Count(&count); count == 0 || email == "" {
-			return true
-		}
-		return false
-	}))
+	govalidator.CustomTypeTagMap.Set("email",
+		func(email interface{}, context interface{}) bool {
+			if email.(string) == "" {
+				return true
+			}
+			var count int64
+			db.Model(&User{}).Where("email = ?", email).Count(&count)
+			if count == 0 {
+				return true
+			}
+			return false
+		},
+	)
 }
 
 type Company struct {
@@ -90,17 +97,26 @@ func (language *Language) Validate(db *gorm.DB) error {
 func init() {
 	db = test_utils.TestDB()
 	validations.RegisterCallbacks(db)
-	tables := []interface{}{&User{}, &Company{}, &CreditCard{}, &Address{}, &Language{}}
-	for _, table := range tables {
-
-		if err := db.Migrator().DropTable(table); err != nil {
-			panic(err)
+	tabs := []interface{}{
+		&User{},
+		&Company{},
+		&CreditCard{},
+		&Address{},
+		&Language{},
+	}
+	for _, t := range tabs {
+		if e := db.Migrator().DropTable(t); e != nil {
+			panic(e)
 		}
-		db.AutoMigrate(table)
+		if e := db.AutoMigrate(t); e != nil {
+			panic(e)
+		}
 	}
 }
 
 func TestGoValidation(t *testing.T) {
+	// defer db.Delete(&User{})
+
 	user := User{Name: "", Password: "123123", Email: "a@gmail.com"}
 
 	result := db.Save(&user)
@@ -108,26 +124,39 @@ func TestGoValidation(t *testing.T) {
 		t.Errorf("Should get error when save empty user")
 	}
 
-	if result.Error.Error() != "Name can't be blank" {
+	errs := strings.Split(result.Error.Error(), ";")
+
+	if len(errs) <= 0 && errs[0] != "Name can't be blank" {
 		t.Errorf("Error message should be equal `Name can't be blank`")
 	}
 
 	user = User{Name: "", Password: "123", SecurePassword: "AB123", Email: "aagmail.com"}
 	result = db.Save(&user)
-	// messages := []string{"Name can't be blank",
-	// 	"Password is the wrong length (should be 6~20 characters)",
-	// 	"SecurePassword is not a number",
-	// 	"Email is not a valid email address"}
-	// for i, err := range result.GetErrors() {
-	// 	if messages[i] != err.Error() {
-	// 		t.Errorf(fmt.Sprintf("Error message should be equal `%v`, but it is `%v`", messages[i], err.Error()))
-	// 	}
-	// }
+	messages := []string{
+		"Name can't be blank",
+		"Password is the wrong length (should be 6~20 characters)",
+		"SecurePassword is not a number",
+		"Email is not a valid email address",
+	}
+	errs = strings.Split(result.Error.Error(), ";")
+	if len(errs) != len(messages) {
+		t.Errorf("unexpected error count")
+	}
+	for i, err := range errs {
+		if messages[i] != strings.TrimSpace(err) {
+			t.Errorf("Error message should be equal `%v`, but it is `%v`",
+				messages[i], err)
+		}
+	}
 
 	user = User{Name: "A", Password: "123123", Email: "a@gmail.com"}
-	result = db.Save(&user)
+	ret := db.Save(&user)
+	if ret.Error != nil {
+		t.Error(ret.Error)
+	}
+
 	user = User{Name: "B", Password: "123123", Email: "a@gmail.com"}
-	if result := db.Save(&user); result.Error.Error() != "Email already be token" {
+	if err := db.Save(&user).Error; err == nil || err.Error() != "Email already be token" {
 		t.Errorf("Should get email alredy be token error")
 	}
 }

@@ -6,10 +6,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/saitofun/qor-utils/test_utils"
 	"github.com/saitofun/qor/qor"
 	"github.com/saitofun/qor/qor/resource"
 	"github.com/saitofun/qor/qor/utils"
+	"github.com/saitofun/qor/utils/test_utils"
 )
 
 func format(value interface{}) string {

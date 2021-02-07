@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/saitofun/qor/qor"
-	"gorm.io/gorm"
+	"github.com/saitofun/qor/gorm"
 )
 
 // SettingsStorageInterface settings storage interface

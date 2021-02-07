@@ -5,8 +5,8 @@ import (
 	"errors"
 	"reflect"
 
+	"github.com/saitofun/qor/gorm"
 	"github.com/saitofun/qor/serializable_meta"
-	"gorm.io/gorm"
 )
 
 var (

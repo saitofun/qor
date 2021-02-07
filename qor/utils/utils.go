@@ -21,7 +21,7 @@ import (
 	"github.com/jinzhu/now"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/saitofun/qor/qor"
-	"gorm.io/gorm"
+	"github.com/saitofun/qor/gorm"
 )
 
 // AppRoot app root path

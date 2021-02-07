@@ -8,7 +8,7 @@ import (
 	"github.com/saitofun/qor/qor"
 	"github.com/saitofun/qor/qor/utils"
 	"github.com/saitofun/qor/roles"
-	"gorm.io/gorm"
+	"github.com/saitofun/qor/gorm"
 )
 
 // ErrProcessorSkipLeft skip left processors error, if returned this error in validation, before callbacks, then qor will stop process following processors
