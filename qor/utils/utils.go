@@ -20,8 +20,8 @@ import (
 	"github.com/gosimple/slug"
 	"github.com/jinzhu/now"
 	"github.com/microcosm-cc/bluemonday"
-	"github.com/saitofun/qor/qor"
 	"github.com/saitofun/qor/gorm"
+	"github.com/saitofun/qor/qor"
 )
 
 // AppRoot app root path
@@ -168,28 +168,25 @@ func Stringify(object interface{}) string {
 		return obj.Stringify()
 	}
 
-	scope := gorm.Scope{Value: object}
-	for _, column := range []string{"Name", "Title", "Code"} {
-		if field, ok := scope.FieldByName(column); ok {
-			if field.Field.IsValid() {
-				result := field.Field.Interface()
-				if valuer, ok := result.(driver.Valuer); ok {
-					if result, err := valuer.Value(); err == nil {
-						return fmt.Sprint(result)
-					}
-				}
+	schema, _ := gorm.ModelToSchema(object)
+
+	for _, col := range []string{"Name", "Title", "Code"} {
+		f, ok := schema.FieldsByName[col]
+		if !ok {
+			continue
+		}
+		v, ok := gorm.ReflectFieldValue(object, f).(driver.Valuer)
+		if ok {
+			if result, err := v.Value(); err == nil {
 				return fmt.Sprint(result)
 			}
 		}
+		return fmt.Sprint(v)
 	}
-
-	if scope.PrimaryField() != nil {
-		if scope.PrimaryKeyZero() {
-			return ""
-		}
-		return fmt.Sprintf("%v#%v", scope.GetModelStruct().ModelType.Name(), scope.PrimaryKeyValue())
+	if f := schema.PrioritizedPrimaryField; f != nil {
+		return fmt.Sprintf("%v#%v", schema.ModelType.Name(),
+			gorm.ReflectFieldValue(object, f))
 	}
-
 	return fmt.Sprint(reflect.Indirect(reflect.ValueOf(object)).Interface())
 }
 

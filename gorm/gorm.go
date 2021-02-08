@@ -1,7 +1,12 @@
+// author: birdyfj@gmail.com
+// this gorm is wrapped all gorm2's defines and try to make QOR frame migrated to gorm2
+
 package gorm
 
 import (
-	gorm1 "github.com/jinzhu/gorm"
+	"reflect"
+	"sync"
+
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
@@ -12,16 +17,16 @@ type (
 	DB        = gorm.DB
 	Model     = gorm.Model // Model based columns: autoincrement id and time fields
 	Config    = gorm.Config
-	Schema    = schema.Schema
 	Statement = gorm.Statement
+
+	Field  = schema.Field
+	Schema = schema.Schema
 )
 
 // gorm v2 func defines here
 var (
 	Open = gorm.Open
 )
-
-// gorm v2 enum defines here
 
 // gorm.logger.LogLevel
 const (
@@ -48,9 +53,14 @@ var (
 	ErrDryRunModeUnsupported = gorm.ErrDryRunModeUnsupported
 )
 
-type (
-	_Model       = gorm1.Model
-	_Scope       = gorm1.Scope
-	_Field       = gorm1.Field
-	_StructField = gorm1.StructField
-)
+func ModelToSchema(model interface{}, db ...*gorm.DB) (*Schema, error) {
+	var namer schema.Namer = schema.NamingStrategy{}
+	if len(db) > 0 && db[0] != nil && db[0].Config != nil {
+		namer = db[0].Config.NamingStrategy
+	}
+	return schema.Parse(model, &sync.Map{}, namer)
+}
+
+func ReflectFieldValue(model interface{}, field *Field) interface{} {
+	return field.ReflectValueOf(reflect.Indirect(reflect.ValueOf(model))).Interface()
+}

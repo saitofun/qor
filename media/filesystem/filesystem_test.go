@@ -43,7 +43,7 @@ type User struct {
 
 func TestMain(m *testing.M) {
 	os.RemoveAll("public")
-	if err := db.DropTableIfExists(&User{}).Error; err != nil {
+	if err := db.Migrator().DropTable(&User{}).Error; err != nil {
 		panic(err)
 	}
 	db.AutoMigrate(&User{})

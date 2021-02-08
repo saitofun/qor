@@ -13,29 +13,6 @@ import (
 
 var skipValidations = "validations:skip_validations"
 
-// func validate(scope *gorm.Scope) {
-// 	if _, ok := scope.Get("gorm:update_column"); !ok {
-// 		if result, ok := scope.DB().Get(skipValidations); !(ok && result.(bool)) {
-// 			if !scope.HasError() {
-// 				scope.CallMethod("Validate")
-// 				if scope.Value != nil {
-// 					resource := scope.IndirectValue().Interface()
-// 					_, validatorErrors := govalidator.ValidateStruct(resource)
-// 					if validatorErrors != nil {
-// 						if errors, ok := validatorErrors.(govalidator.Errors); ok {
-// 							for _, err := range flatValidatorErrors(errors) {
-// 								scope.DB().AddError(formattedError(err, resource))
-// 							}
-// 						} else {
-// 							scope.DB().AddError(validatorErrors)
-// 						}
-// 					}
-// 				}
-// 			}
-// 		}
-// 	}
-// }
-
 func flatValidatorErrors(err govalidator.Errors) (ret []govalidator.Error) {
 	for _, v := range err.Errors() {
 		if errors, ok := v.(govalidator.Errors); ok {
@@ -72,11 +49,13 @@ func formattedError(err govalidator.Error, res interface{}) error {
 
 // RegisterCallbacks register callback into GORM DB
 func RegisterCallbacks(db *gorm.DB) {
-	db.Callback().Create().Before("gorm:create").Replace("validations:validate", validate)
-	db.Callback().Update().Before("gorm:update").Replace("validations:validate", validate)
+	db.Callback().Create().Before("gorm:create").
+		Register("validations:validate", validate)
+	db.Callback().Update().Before("gorm:update").
+		Register("validations:validate", validate)
 }
 
-type validator interface {
+type Validator interface {
 	Validate(*gorm.DB)
 }
 
@@ -99,7 +78,7 @@ func validate(db *gorm.DB) {
 		return
 	}
 
-	if v, ok := model.(validator); ok {
+	if v, ok := model.(Validator); ok {
 		v.Validate(db)
 		if db.Error != nil {
 			return

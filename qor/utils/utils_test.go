@@ -41,8 +41,8 @@ func TestToParamString(t *testing.T) {
 	}
 
 	for key, value := range results {
-		if ToParamString(key) != value {
-			t.Errorf("%v to params should be %v, but got %v", key, value, ToParamString(key))
+		if slug := ToParamString(key); slug != value {
+			t.Errorf("%v to params should be %v, but got %v", key, value, slug)
 		}
 	}
 }

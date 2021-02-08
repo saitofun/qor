@@ -7,8 +7,8 @@ import (
 	"github.com/kataras/iris/v12"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/saitofun/qor/admin"
-	"gorm.io/driver/sqlite"
 	"github.com/saitofun/qor/gorm"
+	"gorm.io/driver/sqlite"
 )
 
 // Create a GORM-backend model

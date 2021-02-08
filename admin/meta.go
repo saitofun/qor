@@ -137,7 +137,7 @@ func (meta *Meta) configure() {
 
 	meta.PreInitialize()
 	if meta.FieldStruct != nil {
-		if injector, ok := reflect.New(meta.FieldStruct.Struct.Type).Interface().(resource.ConfigureMetaBeforeInitializeInterface); ok {
+		if injector, ok := reflect.New(meta.FieldStruct.Schema.ModelType).Interface().(resource.ConfigureMetaBeforeInitializeInterface); ok {
 			injector.ConfigureQorMetaBeforeInitialize(meta)
 		}
 	}
@@ -152,7 +152,7 @@ func (meta *Meta) configure() {
 	var hasColumn = meta.FieldStruct != nil
 
 	if hasColumn {
-		fieldType = meta.FieldStruct.Struct.Type
+		fieldType = meta.FieldStruct.Schema.ModelType
 		for fieldType.Kind() == reflect.Ptr {
 			fieldType = fieldType.Elem()
 		}
