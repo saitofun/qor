@@ -7,10 +7,10 @@ import (
 	"path"
 	"reflect"
 
+	"github.com/saitofun/qor/gorm"
 	"github.com/saitofun/qor/qor"
 	"github.com/saitofun/qor/qor/resource"
 	"github.com/saitofun/qor/qor/utils"
-	"github.com/saitofun/qor/gorm"
 )
 
 // SelectOneConfig meta configuration used for select one
@@ -74,9 +74,10 @@ func (selectOneConfig *SelectOneConfig) ConfigureQorMeta(metaor resource.Metaor)
 
 // ConfigureQORAdminFilter configure admin filter
 func (selectOneConfig *SelectOneConfig) ConfigureQORAdminFilter(filter *Filter) {
-	var structField *gorm.StructField
-	if field, ok := filter.Resource.GetAdmin().DB.NewScope(filter.Resource.Value).FieldByName(filter.Name); ok {
-		structField = field.StructField
+	var structField *gorm.Field
+	var schema = filter.Resource.GetAdmin().DB.Statement.Schema
+	if field, ok := schema.FieldsByName[filter.Name]; ok {
+		structField = field
 	}
 
 	selectOneConfig.prepareDataSource(structField, filter.Resource, "!remote_data_filter")
@@ -112,7 +113,7 @@ func (selectOneConfig *SelectOneConfig) FilterValue(filter *Filter, context *Con
 	return keyword
 }
 
-func (selectOneConfig *SelectOneConfig) prepareDataSource(field *gorm.StructField, res *Resource, routePrefix string) {
+func (selectOneConfig *SelectOneConfig) prepareDataSource(field *gorm.Field, res *Resource, routePrefix string) {
 	// Set GetCollection
 	if selectOneConfig.Collection != nil {
 		selectOneConfig.SelectMode = "select"
@@ -142,7 +143,7 @@ func (selectOneConfig *SelectOneConfig) prepareDataSource(field *gorm.StructFiel
 	// Set GetCollection if normal select mode
 	if selectOneConfig.getCollection == nil {
 		if selectOneConfig.RemoteDataResource == nil && field != nil {
-			fieldType := field.Struct.Type
+			fieldType := field.FieldType
 			for fieldType.Kind() == reflect.Ptr || fieldType.Kind() == reflect.Slice {
 				fieldType = fieldType.Elem()
 			}
@@ -173,8 +174,7 @@ func (selectOneConfig *SelectOneConfig) prepareDataSource(field *gorm.StructFiel
 			reflectValues := reflect.Indirect(reflect.ValueOf(searchResults))
 			for i := 0; i < reflectValues.Len(); i++ {
 				value := reflectValues.Index(i).Interface()
-				scope := context.GetDB().NewScope(value)
-				results = append(results, []string{fmt.Sprint(scope.PrimaryKeyValue()), utils.Stringify(value)})
+				results = append(results, []string{fmt.Sprint(gorm.PrimaryKeyValue(value)), utils.Stringify(value)})
 			}
 			return
 		}

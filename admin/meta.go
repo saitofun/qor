@@ -1,17 +1,12 @@
 package admin
 
 import (
-	"database/sql"
 	"reflect"
-	"regexp"
-	"strconv"
-	"time"
 
 	"github.com/saitofun/qor/qor"
 	"github.com/saitofun/qor/qor/resource"
 	"github.com/saitofun/qor/qor/utils"
 	"github.com/saitofun/qor/roles"
-	"github.com/saitofun/qor/gorm"
 )
 
 // MetaConfigInterface meta config interface
@@ -160,95 +155,96 @@ func (meta *Meta) configure() {
 
 	// Set Meta Type
 	if hasColumn {
-		if meta.Type == "" {
-			if _, ok := reflect.New(fieldType).Interface().(sql.Scanner); ok {
-				if fieldType.Kind() == reflect.Struct {
-					fieldType = reflect.Indirect(reflect.New(fieldType)).Field(0).Type()
-				}
-			}
+		// @todo meat relations
+		// if meta.Type == "" {
+		// 	if _, ok := reflect.New(fieldType).Interface().(sql.Scanner); ok {
+		// 		if fieldType.Kind() == reflect.Struct {
+		// 			fieldType = reflect.Indirect(reflect.New(fieldType)).Field(0).Type()
+		// 		}
+		// 	}
 
-			if relationship := meta.FieldStruct.Relationship; relationship != nil {
-				if relationship.Kind == "has_one" {
-					meta.Type = "single_edit"
-				} else if relationship.Kind == "has_many" {
-					meta.Type = "collection_edit"
-				} else if relationship.Kind == "belongs_to" {
-					meta.Type = "select_one"
-				} else if relationship.Kind == "many_to_many" {
-					meta.Type = "select_many"
-				}
-			} else {
-				switch fieldType.Kind() {
-				case reflect.String:
-					var tags = meta.FieldStruct.TagSettings
-					if size, ok := tags["SIZE"]; ok {
-						if i, _ := strconv.Atoi(size); i > 255 {
-							meta.Type = "text"
-						} else {
-							meta.Type = "string"
-						}
-					} else if text, ok := tags["TYPE"]; ok && text == "text" {
-						meta.Type = "text"
-					} else {
-						meta.Type = "string"
-					}
-				case reflect.Bool:
-					meta.Type = "checkbox"
-				default:
-					if regexp.MustCompile(`^(.*)?(u)?(int)(\d+)?`).MatchString(fieldType.Kind().String()) {
-						meta.Type = "number"
-					} else if regexp.MustCompile(`^(.*)?(float)(\d+)?`).MatchString(fieldType.Kind().String()) {
-						meta.Type = "float"
-					} else if _, ok := reflect.New(fieldType).Interface().(*time.Time); ok {
-						meta.Type = "datetime"
-					} else {
-						if fieldType.Kind() == reflect.Struct {
-							meta.Type = "single_edit"
-						} else if fieldType.Kind() == reflect.Slice {
-							refelectType := fieldType.Elem()
-							for refelectType.Kind() == reflect.Ptr {
-								refelectType = refelectType.Elem()
-							}
-							if refelectType.Kind() == reflect.Struct {
-								meta.Type = "collection_edit"
-							}
-						}
-					}
-				}
-			}
-		} else {
-			if relationship := meta.FieldStruct.Relationship; relationship != nil {
-				if (relationship.Kind == "has_one" || relationship.Kind == "has_many") && meta.Meta.Setter == nil && (meta.Type == "select_one" || meta.Type == "select_many") {
-					meta.SetSetter(func(resource interface{}, metaValue *resource.MetaValue, context *qor.Context) {
-						scope := &gorm.Scope{Value: resource}
-						reflectValue := reflect.Indirect(reflect.ValueOf(resource))
-						field := reflectValue.FieldByName(meta.FieldName)
+		// 	if relationship := meta.FieldStruct.Relationship; relationship != nil {
+		// 		if relationship.Kind == "has_one" {
+		// 			meta.Type = "single_edit"
+		// 		} else if relationship.Kind == "has_many" {
+		// 			meta.Type = "collection_edit"
+		// 		} else if relationship.Kind == "belongs_to" {
+		// 			meta.Type = "select_one"
+		// 		} else if relationship.Kind == "many_to_many" {
+		// 			meta.Type = "select_many"
+		// 		}
+		// 	} else {
+		// 		switch fieldType.Kind() {
+		// 		case reflect.String:
+		// 			var tags = meta.FieldStruct.TagSettings
+		// 			if size, ok := tags["SIZE"]; ok {
+		// 				if i, _ := strconv.Atoi(size); i > 255 {
+		// 					meta.Type = "text"
+		// 				} else {
+		// 					meta.Type = "string"
+		// 				}
+		// 			} else if text, ok := tags["TYPE"]; ok && text == "text" {
+		// 				meta.Type = "text"
+		// 			} else {
+		// 				meta.Type = "string"
+		// 			}
+		// 		case reflect.Bool:
+		// 			meta.Type = "checkbox"
+		// 		default:
+		// 			if regexp.MustCompile(`^(.*)?(u)?(int)(\d+)?`).MatchString(fieldType.Kind().String()) {
+		// 				meta.Type = "number"
+		// 			} else if regexp.MustCompile(`^(.*)?(float)(\d+)?`).MatchString(fieldType.Kind().String()) {
+		// 				meta.Type = "float"
+		// 			} else if _, ok := reflect.New(fieldType).Interface().(*time.Time); ok {
+		// 				meta.Type = "datetime"
+		// 			} else {
+		// 				if fieldType.Kind() == reflect.Struct {
+		// 					meta.Type = "single_edit"
+		// 				} else if fieldType.Kind() == reflect.Slice {
+		// 					refelectType := fieldType.Elem()
+		// 					for refelectType.Kind() == reflect.Ptr {
+		// 						refelectType = refelectType.Elem()
+		// 					}
+		// 					if refelectType.Kind() == reflect.Struct {
+		// 						meta.Type = "collection_edit"
+		// 					}
+		// 				}
+		// 			}
+		// 		}
+		// 	}
+		// } else {
+		// 	if relationship := meta.FieldStruct.Relationship; relationship != nil {
+		// 		if (relationship.Kind == "has_one" || relationship.Kind == "has_many") && meta.Meta.Setter == nil && (meta.Type == "select_one" || meta.Type == "select_many") {
+		// 			meta.SetSetter(func(resource interface{}, metaValue *resource.MetaValue, context *qor.Context) {
+		// 				scope := &gorm.Scope{Value: resource}
+		// 				reflectValue := reflect.Indirect(reflect.ValueOf(resource))
+		// 				field := reflectValue.FieldByName(meta.FieldName)
 
-						if field.Kind() == reflect.Ptr {
-							if field.IsNil() {
-								field.Set(utils.NewValue(field.Type()).Elem())
-							}
+		// 				if field.Kind() == reflect.Ptr {
+		// 					if field.IsNil() {
+		// 						field.Set(utils.NewValue(field.Type()).Elem())
+		// 					}
 
-							for field.Kind() == reflect.Ptr {
-								field = field.Elem()
-							}
-						}
+		// 					for field.Kind() == reflect.Ptr {
+		// 						field = field.Elem()
+		// 					}
+		// 				}
 
-						primaryKeys := utils.ToArray(metaValue.Value)
-						if len(primaryKeys) > 0 {
-							// set current field value to blank and replace it with new value
-							field.Set(reflect.Zero(field.Type()))
-							context.GetDB().Where(primaryKeys).Find(field.Addr().Interface())
-						}
+		// 				primaryKeys := utils.ToArray(metaValue.Value)
+		// 				if len(primaryKeys) > 0 {
+		// 					// set current field value to blank and replace it with new value
+		// 					field.Set(reflect.Zero(field.Type()))
+		// 					context.GetDB().Where(primaryKeys).Find(field.Addr().Interface())
+		// 				}
 
-						if !scope.PrimaryKeyZero() {
-							context.GetDB().Model(resource).Association(meta.FieldName).Replace(field.Interface())
-							field.Set(reflect.Zero(field.Type()))
-						}
-					})
-				}
-			}
-		}
+		// 				if !scope.PrimaryKeyZero() {
+		// 					context.GetDB().Model(resource).Association(meta.FieldName).Replace(field.Interface())
+		// 					field.Set(reflect.Zero(field.Type()))
+		// 				}
+		// 			})
+		// 		}
+		// 	}
+		// }
 	}
 
 	{ // Set Meta Resource
@@ -293,7 +289,7 @@ func (meta *Meta) configure() {
 
 	// call field's ConfigureMetaInterface
 	if meta.FieldStruct != nil {
-		if injector, ok := reflect.New(meta.FieldStruct.Struct.Type).Interface().(resource.ConfigureMetaInterface); ok {
+		if injector, ok := reflect.New(meta.FieldStruct.FieldType).Interface().(resource.ConfigureMetaInterface); ok {
 			injector.ConfigureQorMeta(meta)
 		}
 	}

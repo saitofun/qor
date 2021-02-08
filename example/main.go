@@ -27,7 +27,7 @@ type Product struct {
 func main() {
 	fmt.Println(os.Getwd())
 
-	DB, _ := gorm.Open(sqlite.Open("gorm.db"), &gorm.Config{})
+	DB, _ := gorm.Open(sqlite.Open("demo.db"), &gorm.Config{})
 	DB.AutoMigrate(&User{}, &Product{})
 
 	qorPrefix := "/admin"

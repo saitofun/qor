@@ -132,12 +132,14 @@ func (res *Resource) findManyHandler(result interface{}, context *qor.Context) e
 	if !res.HasPermission(roles.Read, context) {
 		return roles.ErrPermissionDenied
 	}
-	v, ok := result.(*int64)
-	if !ok || v == nil {
-		return errors.New("unexpected parameter: result should be *int64")
-	}
 	if _, ok := context.GetDB().Get("qor:getting_total_count"); ok {
-		return context.GetDB().Count(v).Error
+		if _, ok := result.(*int); ok {
+			v := int64(0)
+			*(result.(*int)) = int(v)
+			return context.GetDB().Count(&v).Error
+		} else if v, ok := result.(*int64); ok {
+			return context.GetDB().Count(v).Error
+		}
 	}
 	return context.GetDB().Set("gorm:order_by_primary_key", "DESC").Find(result).Error
 }

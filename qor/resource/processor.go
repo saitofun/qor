@@ -5,10 +5,10 @@ import (
 	"errors"
 	"reflect"
 
+	"github.com/saitofun/qor/gorm"
 	"github.com/saitofun/qor/qor"
 	"github.com/saitofun/qor/qor/utils"
 	"github.com/saitofun/qor/roles"
-	"github.com/saitofun/qor/gorm"
 )
 
 // ErrProcessorSkipLeft skip left processors error, if returned this error in validation, before callbacks, then qor will stop process following processors
@@ -75,9 +75,8 @@ func (processor *processor) decode() (errs []error) {
 	}
 
 	newRecord := true
-	scope := &gorm.Scope{Value: processor.Result}
-	if primaryField := scope.PrimaryField(); primaryField != nil {
-		if !primaryField.IsBlank {
+	if primaryField := gorm.PrimaryField(processor.Result); primaryField != nil {
+		if !gorm.IsFieldBlank(processor.Result, primaryField) {
 			newRecord = false
 		} else {
 			for _, metaValue := range processor.MetaValues.Values {
