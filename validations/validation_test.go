@@ -2,8 +2,8 @@ package validations_test
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
-	"strings"
 	"testing"
 
 	"github.com/asaskevich/govalidator"
@@ -20,7 +20,7 @@ type User struct {
 	Name           string `valid:"required"`
 	Password       string `valid:"length(6|20)"`
 	SecurePassword string `valid:"numeric"`
-	Email          string `valid:"email~Email already be token"`
+	Email          string `valid:"email,uniqEmail~Email already be token"`
 	CompanyID      int
 	Company        Company
 	CreditCard     CreditCard
@@ -29,22 +29,19 @@ type User struct {
 }
 
 func (user *User) Validate(db *gorm.DB) {
-	if user.Name == "invalid" {
-		db.AddError(validations.NewError(user, "Name", "invalid user name"))
-	}
-	govalidator.CustomTypeTagMap.Set("email",
+	govalidator.CustomTypeTagMap.Set("uniqEmail",
 		func(email interface{}, context interface{}) bool {
-			if email.(string) == "" {
-				return true
-			}
 			var count int64
-			db.Model(&User{}).Where("email = ?", email).Count(&count)
-			if count == 0 {
+			db.Session(&gorm.Session{}).Model(&User{}).Where("email = ?", email).Count(&count)
+			if count == 0 || email == "" {
 				return true
 			}
 			return false
 		},
 	)
+	if user.Name == "invalid" {
+		db.AddError(validations.NewError(user, "Name", "invalid user name"))
+	}
 }
 
 type Company struct {
@@ -97,66 +94,49 @@ func (language *Language) Validate(db *gorm.DB) error {
 func init() {
 	db = test_utils.TestDB()
 	validations.RegisterCallbacks(db)
-	tabs := []interface{}{
-		&User{},
-		&Company{},
-		&CreditCard{},
-		&Address{},
-		&Language{},
-	}
-	for _, t := range tabs {
-		if e := db.Migrator().DropTable(t); e != nil {
-			panic(e)
+	tables := []interface{}{&User{}, &Company{}, &CreditCard{}, &Address{}, &Language{}}
+	for _, table := range tables {
+		if err := db.Migrator().DropTable(table); err != nil {
+			panic(err)
 		}
-		if e := db.AutoMigrate(t); e != nil {
-			panic(e)
+		if err := db.AutoMigrate(table); err != nil {
+			panic(err)
 		}
 	}
 }
 
 func TestGoValidation(t *testing.T) {
-	// defer db.Delete(&User{})
-
 	user := User{Name: "", Password: "123123", Email: "a@gmail.com"}
 
 	result := db.Save(&user)
-	if result.Error == nil {
-		t.Errorf("Should get error when save empty user")
-	}
-
-	errs := strings.Split(result.Error.Error(), ";")
-
-	if len(errs) <= 0 && errs[0] != "Name can't be blank" {
-		t.Errorf("Error message should be equal `Name can't be blank`")
+	if e := result.Error; e == nil || e.Error() != "Name can't be blank" {
+		t.Errorf("Error message should be equal `Name can't be blank`, but got `%v`", e)
 	}
 
 	user = User{Name: "", Password: "123", SecurePassword: "AB123", Email: "aagmail.com"}
 	result = db.Save(&user)
-	messages := []string{
-		"Name can't be blank",
+	messages := []string{"Name can't be blank",
 		"Password is the wrong length (should be 6~20 characters)",
 		"SecurePassword is not a number",
-		"Email is not a valid email address",
-	}
-	errs = strings.Split(result.Error.Error(), ";")
+		"Email is not a valid email address"}
+	errs := gorm.GetDBErrors(result)
 	if len(errs) != len(messages) {
-		t.Errorf("unexpected error count")
+		t.Errorf("unequal error count")
 	}
 	for i, err := range errs {
-		if messages[i] != strings.TrimSpace(err) {
-			t.Errorf("Error message should be equal `%v`, but it is `%v`",
-				messages[i], err)
+		if messages[i] != err.Error() {
+			t.Errorf(fmt.Sprintf("Error message should be equal `%v`, but it is `%v`", messages[i], err.Error()))
 		}
 	}
 
 	user = User{Name: "A", Password: "123123", Email: "a@gmail.com"}
-	ret := db.Save(&user)
-	if ret.Error != nil {
-		t.Error(ret.Error)
+	result = db.Save(&user)
+	if e := result.Error; e != nil {
+		t.Errorf("here should completed, but got `%v`", e)
 	}
-
 	user = User{Name: "B", Password: "123123", Email: "a@gmail.com"}
-	if err := db.Save(&user).Error; err == nil || err.Error() != "Email already be token" {
+	result = db.Save(&user)
+	if e := result.Error; e == nil || e.Error() != "Email already be token" {
 		t.Errorf("Should get email alredy be token error")
 	}
 }
