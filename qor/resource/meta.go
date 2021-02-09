@@ -55,7 +55,7 @@ func (MetaConfig) ConfigureQorMeta(Metaor) {
 type Meta struct {
 	Name            string
 	FieldName       string
-	FieldStruct     *gorm.Field
+	FieldStruct     *gorm.StructField
 	Setter          func(resource interface{}, metaValue *MetaValue, context *qor.Context)
 	Valuer          func(interface{}, *qor.Context) interface{}
 	FormattedValuer func(interface{}, *qor.Context) interface{}
@@ -154,7 +154,7 @@ func (meta *Meta) PreInitialize() error {
 		return value, fields[len(fields)-1]
 	}
 
-	var getField = func(fields []*gorm.Field, name string) *gorm.Field {
+	var getField = func(fields []*gorm.StructField, name string) *gorm.StructField {
 		for _, field := range fields {
 			if field.Name == name || field.DBName == name {
 				return field
@@ -164,13 +164,12 @@ func (meta *Meta) PreInitialize() error {
 	}
 
 	var nestedField = strings.Contains(meta.FieldName, ".")
-	var schema, _ = gorm.ModelToSchema(meta.BaseResource.GetResource().Value)
+	var scope = &gorm.Scope{Value: meta.BaseResource.GetResource().Value}
 	if nestedField {
 		subModel, name := parseNestedField(reflect.ValueOf(meta.BaseResource.GetResource().Value), meta.FieldName)
-		schema, _ = gorm.ModelToSchema(subModel.Interface())
-		meta.FieldStruct = getField(schema.Fields, name)
+		meta.FieldStruct = getField(scope.New(subModel.Interface()).GetStructFields(), name)
 	} else {
-		meta.FieldStruct = getField(schema.Fields, meta.FieldName)
+		meta.FieldStruct = getField(scope.GetStructFields(), meta.FieldName)
 	}
 	return nil
 }
@@ -208,50 +207,29 @@ func setupValuer(meta *Meta, fieldName string, record interface{}) {
 		return
 	}
 
-	if meta.FieldStruct == nil {
-		return
-	}
+	if meta.FieldStruct != nil {
+		meta.Valuer = func(value interface{}, context *qor.Context) interface{} {
+			scope := context.GetDB().NewScope(value)
 
-	meta.Valuer = func(v interface{}, ctx *qor.Context) interface{} {
-		var (
-			stmt      = ctx.DB.Statement
-			schema    = stmt.Schema
-			relations = schema.Relationships
-		)
+			if f, ok := scope.FieldByName(fieldName); ok {
+				if relationship := f.Relationship; relationship != nil && f.Field.CanAddr() && !scope.PrimaryKeyZero() {
+					if (relationship.Kind == "has_many" || relationship.Kind == "many_to_many") && f.Field.Len() == 0 {
+						context.GetDB().Model(value).Related(f.Field.Addr().Interface(), fieldName)
+					} else if (relationship.Kind == "has_one" || relationship.Kind == "belongs_to") && context.GetDB().NewScope(f.Field.Interface()).PrimaryKeyZero() {
+						if f.Field.Kind() == reflect.Ptr && f.Field.IsNil() {
+							f.Field.Set(reflect.New(f.Field.Type().Elem()))
+						}
 
-		f := schema.FieldsByName[fieldName]
-		if f == nil {
+						context.GetDB().Model(value).Related(f.Field.Addr().Interface(), fieldName)
+					}
+				}
+
+				return f.Field.Interface()
+			}
+
 			return ""
 		}
-		// @todo
-		if len(relations.HasMany) > 0 || len(relations.Many2Many) > 0 {
-		} else if len(relations.HasOne) > 0 || len(relations.BelongsTo) > 0 {
-		}
-		return gorm.ReflectFieldValue(v, f)
 	}
-
-	// meta.Valuer = func(value interface{}, context *qor.Context) interface{} {
-	// 	db := (*gorm.DB1)(context.DB)
-	// 	scope := db.NewScope(value)
-
-	// 	if f, ok := scope.FieldByName(fieldName); ok {
-	// 		if relationship := f.Relationship; relationship != nil && f.Field.CanAddr() && !scope.PrimaryKeyZero() {
-	// 			if (relationship.Kind == "has_many" || relationship.Kind == "many_to_many") && f.Field.Len() == 0 {
-	// 				db.Model(value).Related(f.Field.Addr().Interface(), fieldName)
-	// 			} else if (relationship.Kind == "has_one" || relationship.Kind == "belongs_to") && db.NewScope(f.Field.Interface()).PrimaryKeyZero() {
-	// 				if f.Field.Kind() == reflect.Ptr && f.Field.IsNil() {
-	// 					f.Field.Set(reflect.New(f.Field.Type().Elem()))
-	// 				}
-
-	// 				context.GetDB().Model(value).Related(f.Field.Addr().Interface(), fieldName)
-	// 			}
-	// 		}
-
-	// 		return f.Field.Interface()
-	// 	}
-
-	// 	return ""
-	// }
 }
 
 func setupSetter(meta *Meta, fieldName string, record interface{}) {
@@ -304,56 +282,55 @@ func setupSetter(meta *Meta, fieldName string, record interface{}) {
 		}
 	}
 
-	// @todo
 	// Setup belongs_to / many_to_many Setter
-	// if meta.FieldStruct != nil {
-	// 	if relationship := meta.FieldStruct.Relationship; relationship != nil {
-	// 		if relationship.Kind == "belongs_to" || relationship.Kind == "many_to_many" {
-	// 			meta.Setter = commonSetter(func(field reflect.Value, metaValue *MetaValue, context *qor.Context, record interface{}) {
-	// 				var (
-	// 					scope         = context.GetDB().NewScope(record)
-	// 					indirectValue = reflect.Indirect(reflect.ValueOf(record))
-	// 				)
-	// 				primaryKeys := utils.ToArray(metaValue.Value)
-	// 				if metaValue.Value == nil {
-	// 					primaryKeys = []string{}
-	// 				}
+	if meta.FieldStruct != nil {
+		if relationship := meta.FieldStruct.Relationship; relationship != nil {
+			if relationship.Kind == "belongs_to" || relationship.Kind == "many_to_many" {
+				meta.Setter = commonSetter(func(field reflect.Value, metaValue *MetaValue, context *qor.Context, record interface{}) {
+					var (
+						scope         = context.GetDB().NewScope(record)
+						indirectValue = reflect.Indirect(reflect.ValueOf(record))
+					)
+					primaryKeys := utils.ToArray(metaValue.Value)
+					if metaValue.Value == nil {
+						primaryKeys = []string{}
+					}
 
-	// 				// associations not changed for belongs to
-	// 				if relationship.Kind == "belongs_to" && len(relationship.ForeignFieldNames) == 1 {
-	// 					oldPrimaryKeys := utils.ToArray(indirectValue.FieldByName(relationship.ForeignFieldNames[0]).Interface())
-	// 					// if not changed
-	// 					if fmt.Sprint(primaryKeys) == fmt.Sprint(oldPrimaryKeys) {
-	// 						return
-	// 					}
+					// associations not changed for belongs to
+					if relationship.Kind == "belongs_to" && len(relationship.ForeignFieldNames) == 1 {
+						oldPrimaryKeys := utils.ToArray(indirectValue.FieldByName(relationship.ForeignFieldNames[0]).Interface())
+						// if not changed
+						if fmt.Sprint(primaryKeys) == fmt.Sprint(oldPrimaryKeys) {
+							return
+						}
 
-	// 					// if removed
-	// 					if len(primaryKeys) == 0 {
-	// 						field := indirectValue.FieldByName(relationship.ForeignFieldNames[0])
-	// 						field.Set(reflect.Zero(field.Type()))
-	// 					}
-	// 				}
+						// if removed
+						if len(primaryKeys) == 0 {
+							field := indirectValue.FieldByName(relationship.ForeignFieldNames[0])
+							field.Set(reflect.Zero(field.Type()))
+						}
+					}
 
-	// 				// set current field value to blank
-	// 				field.Set(reflect.Zero(field.Type()))
+					// set current field value to blank
+					field.Set(reflect.Zero(field.Type()))
 
-	// 				if len(primaryKeys) > 0 {
-	// 					// replace it with new value
-	// 					context.GetDB().Where(primaryKeys).Find(field.Addr().Interface())
-	// 				}
+					if len(primaryKeys) > 0 {
+						// replace it with new value
+						context.GetDB().Where(primaryKeys).Find(field.Addr().Interface())
+					}
 
-	// 				// Replace many 2 many relations
-	// 				if relationship.Kind == "many_to_many" {
-	// 					if !scope.PrimaryKeyZero() {
-	// 						context.GetDB().Model(record).Association(meta.FieldName).Replace(field.Interface())
-	// 						field.Set(reflect.Zero(field.Type()))
-	// 					}
-	// 				}
-	// 			})
-	// 			return
-	// 		}
-	// 	}
-	// }
+					// Replace many 2 many relations
+					if relationship.Kind == "many_to_many" {
+						if !scope.PrimaryKeyZero() {
+							context.GetDB().Model(record).Association(meta.FieldName).Replace(field.Interface())
+							field.Set(reflect.Zero(field.Type()))
+						}
+					}
+				})
+				return
+			}
+		}
+	}
 
 	field := reflect.Indirect(reflect.ValueOf(record)).FieldByName(fieldName)
 	for field.Kind() == reflect.Ptr {
@@ -428,28 +405,21 @@ func setupSetter(meta *Meta, fieldName string, record interface{}) {
 }
 
 func getNestedModel(value interface{}, fieldName string, context *qor.Context) interface{} {
-	if context == nil || context.GetDB() == nil {
-		return nil
-	}
-
-	db := context.GetDB()
 	model := reflect.Indirect(reflect.ValueOf(value))
 	fields := strings.Split(fieldName, ".")
-
 	for _, field := range fields[:len(fields)-1] {
-		if !model.CanAddr() {
-			continue
-		}
-		sub := model.FieldByName(field)
-		schemaSub, _ := gorm.ModelToSchema(sub)
-		schemaModel, _ := gorm.ModelToSchema(model)
-		if schemaSub.PrioritizedPrimaryField == nil &&
-			schemaModel.PrioritizedPrimaryField != nil {
-			if !sub.CanAddr() {
-				break
+		if model.CanAddr() {
+			submodel := model.FieldByName(field)
+			if context != nil && context.GetDB() != nil && context.GetDB().NewRecord(submodel.Interface()) && !context.GetDB().NewRecord(model.Addr().Interface()) {
+				if submodel.CanAddr() {
+					context.GetDB().Model(model.Addr().Interface()).Association(field).Find(submodel.Addr().Interface())
+					model = submodel
+				} else {
+					break
+				}
+			} else {
+				model = submodel
 			}
-			db.Model(model.Addr().Interface()).Association(field).
-				Find(sub.Addr().Interface())
 		}
 	}
 

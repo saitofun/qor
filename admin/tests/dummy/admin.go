@@ -1,20 +1,18 @@
 package dummy
 
 import (
-	"errors"
 	"fmt"
 
-	"github.com/saitofun/qor/admin"
-	"github.com/saitofun/qor/media"
-	"github.com/saitofun/qor/qor"
-	"github.com/saitofun/qor/utils/test_utils"
-	"github.com/saitofun/qor/gorm"
+	"github.com/qor/admin"
+	"github.com/qor/media"
+	"github.com/qor/qor"
+	"github.com/qor/qor/test/utils"
 )
 
 // NewDummyAdmin generate admin for dummy app
 func NewDummyAdmin(keepData ...bool) *admin.Admin {
 	var (
-		db     = test_utils.TestDB()
+		db     = utils.TestDB()
 		models = []interface{}{&User{}, &CreditCard{}, &Address{}, &Language{}, &Profile{}, &Phone{}, &Company{}}
 		Admin  = admin.New(&qor.Config{DB: db})
 	)
@@ -23,7 +21,7 @@ func NewDummyAdmin(keepData ...bool) *admin.Admin {
 
 	for _, value := range models {
 		if len(keepData) == 0 {
-			_ = db.Migrator().DropTable(value)
+			db.DropTableIfExists(value)
 		}
 		db.AutoMigrate(value)
 	}
@@ -39,11 +37,7 @@ func NewDummyAdmin(keepData ...bool) *admin.Admin {
 		Name: "Languages",
 		Type: "select_many",
 		Collection: func(resource interface{}, context *qor.Context) (results [][]string) {
-			var (
-				languages []Language
-				err       = context.GetDB().Find(&languages).Error
-			)
-			if !errors.Is(err, gorm.ErrRecordNotFound) {
+			if languages := []Language{}; !context.GetDB().Find(&languages).RecordNotFound() {
 				for _, language := range languages {
 					results = append(results, []string{fmt.Sprint(language.ID), language.Name})
 				}

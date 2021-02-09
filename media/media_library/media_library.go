@@ -10,17 +10,17 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/saitofun/qor/admin"
-	"github.com/saitofun/qor/gorm"
-	"github.com/saitofun/qor/media"
-	"github.com/saitofun/qor/media/oss"
-	"github.com/saitofun/qor/qor"
-	"github.com/saitofun/qor/qor/resource"
-	"github.com/saitofun/qor/qor/utils"
+	"github.com/jinzhu/gorm"
+	"github.com/qor/admin"
+	"github.com/qor/media"
+	"github.com/qor/media/oss"
+	"github.com/qor/qor"
+	"github.com/qor/qor/resource"
+	"github.com/qor/qor/utils"
 )
 
 func init() {
-	admin.RegisterViewPath("github.com/saitofun/qor/media/media_library/views")
+	admin.RegisterViewPath("github.com/qor/media/media_library/views")
 }
 
 type MediaLibraryInterface interface {

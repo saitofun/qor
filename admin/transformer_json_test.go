@@ -6,11 +6,11 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/now"
-	"github.com/saitofun/qor/admin"
-	. "github.com/saitofun/qor/admin/tests/dummy"
+	"github.com/qor/admin"
+	. "github.com/qor/admin/tests/dummy"
 	"github.com/theplant/testingutils"
-	"github.com/saitofun/qor/gorm"
 )
 
 func TestJSONTransformerEncode(t *testing.T) {

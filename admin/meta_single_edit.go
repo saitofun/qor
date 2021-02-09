@@ -3,7 +3,7 @@ package admin
 import (
 	"errors"
 
-	"github.com/saitofun/qor/qor/resource"
+	"github.com/qor/qor/resource"
 )
 
 // SingleEditConfig meta configuration used for single edit

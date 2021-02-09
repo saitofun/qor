@@ -32,70 +32,56 @@ func (res *Resource) CallDelete(result interface{}, context *qor.Context) error 
 }
 
 // ToPrimaryQueryParams generate query params based on primary key, multiple primary value are linked with a comma
-func (res *Resource) ToPrimaryQueryParams(primaryValue string, context *qor.Context) (sql string, primaries []interface{}) {
-	if primaryValue == "" {
-		return
-	}
+func (res *Resource) ToPrimaryQueryParams(primaryValue string, context *qor.Context) (string, []interface{}) {
+	if primaryValue != "" {
+		scope := context.GetDB().NewScope(res.Value)
 
-	var (
-		stmt    = context.DB.Statement
-		table   = stmt.Table
-		clauses []string
-	)
-	quoter := func(f *gorm.Field) {
-		clauses = append(clauses, fmt.Sprintf("%v.%v = ?", stmt.Quote(table), stmt.Quote(f.DBName)))
-		primaries = append(primaries, gorm.ReflectFieldValue(res.Value, f))
-	}
+		// multiple primary fields
+		if len(res.PrimaryFields) > 1 {
+			if primaryValueStrs := strings.Split(primaryValue, ","); len(primaryValueStrs) == len(res.PrimaryFields) {
+				sqls := []string{}
+				primaryValues := []interface{}{}
+				for idx, field := range res.PrimaryFields {
+					sqls = append(sqls, fmt.Sprintf("%v.%v = ?", scope.QuotedTableName(), scope.Quote(field.DBName)))
+					primaryValues = append(primaryValues, primaryValueStrs[idx])
+				}
 
-	if len(res.PrimaryFields) > 1 {
-		primaryStrings := strings.Split(primaryValue, ",")
-		if len(primaryStrings) == len(res.PrimaryFields) {
-			for _, f := range res.PrimaryFields {
-				quoter(f)
+				return strings.Join(sqls, " AND "), primaryValues
 			}
 		}
-	} else if f := res.primaryField; f != nil {
-		quoter(f)
-	} else {
-		schema, _ := gorm.ModelToSchema(res.Value)
-		quoter(schema.PrioritizedPrimaryField)
+
+		// fallback to first configured primary field
+		if len(res.PrimaryFields) > 0 {
+			return fmt.Sprintf("%v.%v = ?", scope.QuotedTableName(), scope.Quote(res.PrimaryFields[0].DBName)), []interface{}{primaryValue}
+		}
+
+		// if no configured primary fields found
+		if primaryField := scope.PrimaryField(); primaryField != nil {
+			return fmt.Sprintf("%v.%v = ?", scope.QuotedTableName(), scope.Quote(primaryField.DBName)), []interface{}{primaryValue}
+		}
 	}
 
-	if len(clauses) > 0 {
-		sql = strings.Join(clauses, " AND ")
-	}
-
-	return
+	return "", []interface{}{}
 }
 
 // ToPrimaryQueryParamsFromMetaValue generate query params based on MetaValues
-func (res *Resource) ToPrimaryQueryParamsFromMetaValue(metaValues *MetaValues, context *qor.Context) (sql string, fields []interface{}) {
+func (res *Resource) ToPrimaryQueryParamsFromMetaValue(metaValues *MetaValues, context *qor.Context) (string, []interface{}) {
 	var (
-		stmt    = context.DB.Statement
-		table   = stmt.Table
-		clauses []string
+		sqls          []string
+		primaryValues []interface{}
+		scope         = context.GetDB().NewScope(res.Value)
 	)
 
-	quoter := func(f *gorm.Field) {
-		clauses = append(clauses, fmt.Sprintf("%v.%v = ?", stmt.Quote(table), stmt.Quote(f.DBName)))
-		fields = append(fields, utils.ToString(metaValues.Get(f.Name).Value))
-	}
-
-	if metaValues == nil {
-		return
-	}
-
-	for _, field := range res.PrimaryFields {
-		if m := metaValues.Get(field.Name); m != nil {
-			quoter(field)
+	if metaValues != nil {
+		for _, field := range res.PrimaryFields {
+			if metaField := metaValues.Get(field.Name); metaField != nil {
+				sqls = append(sqls, fmt.Sprintf("%v.%v = ?", scope.QuotedTableName(), scope.Quote(field.DBName)))
+				primaryValues = append(primaryValues, utils.ToString(metaField.Value))
+			}
 		}
 	}
 
-	if len(clauses) > 0 {
-		sql = strings.Join(clauses, " AND ")
-	}
-
-	return
+	return strings.Join(sqls, " AND "), primaryValues
 }
 
 func (res *Resource) findOneHandler(result interface{}, metaValues *MetaValues, context *qor.Context) error {
@@ -129,42 +115,34 @@ func (res *Resource) findOneHandler(result interface{}, metaValues *MetaValues, 
 }
 
 func (res *Resource) findManyHandler(result interface{}, context *qor.Context) error {
-	if !res.HasPermission(roles.Read, context) {
-		return roles.ErrPermissionDenied
-	}
-	if _, ok := context.GetDB().Get("qor:getting_total_count"); ok {
-		if _, ok := result.(*int); ok {
-			v := int64(0)
-			*(result.(*int)) = int(v)
-			return context.GetDB().Count(&v).Error
-		} else if v, ok := result.(*int64); ok {
-			return context.GetDB().Count(v).Error
+	if res.HasPermission(roles.Read, context) {
+		db := context.GetDB()
+		if _, ok := db.Get("qor:getting_total_count"); ok {
+			return context.GetDB().Count(result).Error
 		}
+		return context.GetDB().Set("gorm:order_by_primary_key", "DESC").Find(result).Error
 	}
-	return context.GetDB().Set("gorm:order_by_primary_key", "DESC").Find(result).Error
+
+	return roles.ErrPermissionDenied
 }
 
 func (res *Resource) saveHandler(result interface{}, context *qor.Context) error {
-	schema, _ := gorm.ModelToSchema(result)
-	if schema.PrioritizedPrimaryField == nil &&
-		res.HasPermission(roles.Create, context) ||
-		res.HasPermission(roles.Update, context) {
-		return context.DB.Save(result).Error
+	if (context.GetDB().NewScope(result).PrimaryKeyZero() &&
+		res.HasPermission(roles.Create, context)) || // has create permission
+		res.HasPermission(roles.Update, context) { // has update permission
+		return context.GetDB().Save(result).Error
 	}
 	return roles.ErrPermissionDenied
 }
 
 func (res *Resource) deleteHandler(result interface{}, context *qor.Context) error {
 	if res.HasPermission(roles.Delete, context) {
-		sql, values := res.ToPrimaryQueryParams(context.ResourceID, context)
-		if sql == "" {
-			return gorm.ErrRecordNotFound
+		if primaryQuerySQL, primaryParams := res.ToPrimaryQueryParams(context.ResourceID, context); primaryQuerySQL != "" {
+			if !context.GetDB().First(result, append([]interface{}{primaryQuerySQL}, primaryParams...)...).RecordNotFound() {
+				return context.GetDB().Delete(result).Error
+			}
 		}
-		err := context.DB.First(result,
-			append([]interface{}{sql}, values...)...).Error
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return context.DB.Delete(result).Error
-		}
+		return gorm.ErrRecordNotFound
 	}
-	return gorm.ErrRecordNotFound
+	return roles.ErrPermissionDenied
 }

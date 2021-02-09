@@ -3,7 +3,7 @@ package admin
 import (
 	"errors"
 
-	"github.com/saitofun/qor/qor/resource"
+	"github.com/qor/qor/resource"
 )
 
 // CollectionEditConfig meta configuration used for collection edit

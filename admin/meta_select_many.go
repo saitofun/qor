@@ -5,9 +5,9 @@ import (
 	"html/template"
 	"reflect"
 
-	"github.com/saitofun/qor/qor"
-	"github.com/saitofun/qor/qor/resource"
-	"github.com/saitofun/qor/qor/utils"
+	"github.com/qor/qor"
+	"github.com/qor/qor/resource"
+	"github.com/qor/qor/utils"
 )
 
 // SelectManyConfig meta configuration used for select many

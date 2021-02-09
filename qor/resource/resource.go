@@ -1,6 +1,7 @@
 package resource
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/saitofun/qor/gorm"
@@ -35,7 +36,7 @@ type ConfigureResourceInterface interface {
 type Resource struct {
 	Name            string
 	Value           interface{}
-	PrimaryFields   []*gorm.Field
+	PrimaryFields   []*gorm.StructField
 	FindManyHandler func(interface{}, *qor.Context) error
 	FindOneHandler  func(interface{}, *MetaValues, *qor.Context) error
 	SaveHandler     func(interface{}, *qor.Context) error
@@ -48,22 +49,46 @@ type Resource struct {
 
 // New initialize qor resource
 func New(value interface{}) *Resource {
-	schema, _ := gorm.ModelToSchema(value)
-	return &Resource{
-		Value:           value,
-		Name:            utils.HumanizeString(utils.ModelType(value).Name()),
-		FindOneHandler:  (*Resource)(nil).findOneHandler,
-		FindManyHandler: (*Resource)(nil).findManyHandler,
-		SaveHandler:     (*Resource)(nil).saveHandler,
-		DeleteHandler:   (*Resource)(nil).deleteHandler,
-		PrimaryFields:   schema.PrimaryFields,
-		primaryField:    schema.PrioritizedPrimaryField,
-	}
+	var (
+		name = utils.HumanizeString(utils.ModelType(value).Name())
+		res  = &Resource{Value: value, Name: name}
+	)
+
+	res.FindOneHandler = res.findOneHandler
+	res.FindManyHandler = res.findManyHandler
+	res.SaveHandler = res.saveHandler
+	res.DeleteHandler = res.deleteHandler
+	res.SetPrimaryFields()
+	return res
 }
 
 // GetResource return itself to match interface `Resourcer`
 func (res *Resource) GetResource() *Resource {
 	return res
+}
+
+// SetPrimaryFields set primary fields
+func (res *Resource) SetPrimaryFields(fields ...string) error {
+	scope := gorm.Scope{Value: res.Value}
+	res.PrimaryFields = nil
+
+	if len(fields) > 0 {
+		for _, fieldName := range fields {
+			if field, ok := scope.FieldByName(fieldName); ok {
+				res.PrimaryFields = append(res.PrimaryFields, field.StructField)
+			} else {
+				return fmt.Errorf("%v is not a valid field for resource %v", fieldName, res.Name)
+			}
+		}
+		return nil
+	}
+
+	if primaryField := scope.PrimaryField(); primaryField != nil {
+		res.PrimaryFields = []*gorm.StructField{primaryField.StructField}
+		return nil
+	}
+
+	return fmt.Errorf("no valid primary field for resource %v", res.Name)
 }
 
 // Validator validator struct
@@ -132,7 +157,7 @@ func (res *Resource) HasPermission(mode roles.PermissionMode, context *qor.Conte
 		return true
 	}
 
-	var roles = make([]interface{}, 0)
+	var roles = []interface{}{}
 	for _, role := range context.Roles {
 		roles = append(roles, role)
 	}

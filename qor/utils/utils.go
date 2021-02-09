@@ -87,9 +87,9 @@ var asicsiiRegexp = regexp.MustCompile("^(\\w|\\s|-|!)*$")
 // underscores in a string, also downcase it
 // e.g. ToParamString -> to_param_string, To ParamString -> to_param_string
 func ToParamString(str string) string {
-	// if asicsiiRegexp.MatchString(str) {
-	// 	return gorm.ToDBName(strings.Replace(str, " ", "_", -1))
-	// }
+	if asicsiiRegexp.MatchString(str) {
+		return gorm.ToDBName(strings.Replace(str, " ", "_", -1))
+	}
 	return slug.Make(str)
 }
 
@@ -168,25 +168,28 @@ func Stringify(object interface{}) string {
 		return obj.Stringify()
 	}
 
-	schema, _ := gorm.ModelToSchema(object)
-
-	for _, col := range []string{"Name", "Title", "Code"} {
-		f, ok := schema.FieldsByName[col]
-		if !ok {
-			continue
-		}
-		v, ok := gorm.ReflectFieldValue(object, f).(driver.Valuer)
-		if ok {
-			if result, err := v.Value(); err == nil {
+	scope := gorm.Scope{Value: object}
+	for _, column := range []string{"Name", "Title", "Code"} {
+		if field, ok := scope.FieldByName(column); ok {
+			if field.Field.IsValid() {
+				result := field.Field.Interface()
+				if valuer, ok := result.(driver.Valuer); ok {
+					if result, err := valuer.Value(); err == nil {
+						return fmt.Sprint(result)
+					}
+				}
 				return fmt.Sprint(result)
 			}
 		}
-		return fmt.Sprint(v)
 	}
-	if f := schema.PrioritizedPrimaryField; f != nil {
-		return fmt.Sprintf("%v#%v", schema.ModelType.Name(),
-			gorm.ReflectFieldValue(object, f))
+
+	if scope.PrimaryField() != nil {
+		if scope.PrimaryKeyZero() {
+			return ""
+		}
+		return fmt.Sprintf("%v#%v", scope.GetModelStruct().ModelType.Name(), scope.PrimaryKeyValue())
 	}
+
 	return fmt.Sprint(reflect.Indirect(reflect.ValueOf(object)).Interface())
 }
 

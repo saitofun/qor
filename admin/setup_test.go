@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	"github.com/saitofun/qor/admin"
-	. "github.com/saitofun/qor/admin/tests/dummy"
-	"github.com/saitofun/qor/gorm"
+	"github.com/jinzhu/gorm"
+	"github.com/qor/admin"
+	. "github.com/qor/admin/tests/dummy"
 )
 
 var (

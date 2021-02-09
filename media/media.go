@@ -6,7 +6,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/saitofun/qor/gorm"
+	"github.com/jinzhu/gorm"
 )
 
 // Media is an interface including methods that needs for a media library storage

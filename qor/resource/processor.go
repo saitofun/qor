@@ -75,8 +75,9 @@ func (processor *processor) decode() (errs []error) {
 	}
 
 	newRecord := true
-	if primaryField := gorm.PrimaryField(processor.Result); primaryField != nil {
-		if !gorm.IsFieldBlank(processor.Result, primaryField) {
+	scope := &gorm.Scope{Value: processor.Result}
+	if primaryField := scope.PrimaryField(); primaryField != nil {
+		if !primaryField.IsBlank {
 			newRecord = false
 		} else {
 			for _, metaValue := range processor.MetaValues.Values {

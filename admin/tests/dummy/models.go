@@ -3,8 +3,8 @@ package dummy
 import (
 	"time"
 
-	"github.com/saitofun/qor/media/oss"
-	"github.com/saitofun/qor/gorm"
+	"github.com/jinzhu/gorm"
+	"github.com/qor/media/oss"
 )
 
 type CreditCard struct {

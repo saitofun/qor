@@ -30,6 +30,15 @@ require (
 	github.com/microcosm-cc/bluemonday v1.0.4
 	github.com/moul/http2curl v1.0.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
+	github.com/qor/admin v0.0.0-20210126080646-c154432d6e1b
+	github.com/qor/assetfs v0.0.0-20170713023933-ff57fdc13a14
+	github.com/qor/media v0.0.0-20201118025607-96c1f2487abe
+	github.com/qor/oss v0.0.0-20191031055114-aef9ba66bf76
+	github.com/qor/qor v0.0.0-20200729071734-d587cffbbb93
+	github.com/qor/responder v0.0.0-20201015104727-4f3a345378c2
+	github.com/qor/roles v0.0.0-20201008080147-dcaf8a4646d8
+	github.com/qor/serializable_meta v0.0.0-20180510060738-5fd8542db417
+	github.com/qor/session v0.0.0-20170907035918-8206b0adab70
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	github.com/smartystreets/goconvey v1.6.4 // indirect

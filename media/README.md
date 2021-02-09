@@ -139,7 +139,7 @@ You can also setup a media library, not use oss.OSS in model directly, then you 
 setup a media library
 ```
 import(
-"github.com/saitofun/qor-admin"
+"github.com/qor/admin"
 "github.com/qor/media/oss"
 "github.com/oss/s3"
 "github.com/qor/media/media_library"

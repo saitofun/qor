@@ -9,7 +9,7 @@ import (
 	"github.com/saitofun/qor/qor"
 	"github.com/saitofun/qor/qor/resource"
 	"github.com/saitofun/qor/qor/utils"
-	"github.com/saitofun/qor/utils/test_utils"
+	testutils "github.com/saitofun/qor/utils/test_utils"
 )
 
 func format(value interface{}) string {
@@ -18,7 +18,7 @@ func format(value interface{}) string {
 
 func checkMeta(record interface{}, meta *resource.Meta, value interface{}, t *testing.T, expectedValues ...string) {
 	var (
-		context       = &qor.Context{DB: test_utils.TestDB()}
+		context       = &qor.Context{DB: testutils.TestDB()}
 		metaValue     = &resource.MetaValue{Name: meta.Name, Value: value}
 		expectedValue = fmt.Sprint(value)
 	)

@@ -3,7 +3,7 @@ package admin
 import (
 	"errors"
 
-	"github.com/saitofun/qor/qor"
+	"github.com/qor/qor"
 )
 
 // metaConfig meta config

@@ -9,13 +9,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/saitofun/qor/gorm"
-	"github.com/saitofun/qor/media"
-	"github.com/saitofun/qor/media/filesystem"
-	"github.com/saitofun/qor/utils/test_utils"
+	"github.com/jinzhu/gorm"
+	"github.com/qor/media"
+	"github.com/qor/media/filesystem"
+	"github.com/qor/qor/test/utils"
 )
 
-var db = test_utils.TestDB()
+var db = utils.TestDB()
 
 type MyFileSystem struct {
 	filesystem.FileSystem
@@ -43,7 +43,7 @@ type User struct {
 
 func TestMain(m *testing.M) {
 	os.RemoveAll("public")
-	if err := db.Migrator().DropTable(&User{}).Error; err != nil {
+	if err := db.DropTableIfExists(&User{}).Error; err != nil {
 		panic(err)
 	}
 	db.AutoMigrate(&User{})

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/saitofun/qor/admin/tests/dummy"
+	. "github.com/qor/admin/tests/dummy"
 )
 
 func TestCreateRecord(t *testing.T) {

@@ -23,7 +23,7 @@ type Error struct {
 func (e Error) Label() string {
 	schema, _ := gorm.ModelToSchema(e.Resource)
 	primary, _ := schema.PrioritizedPrimaryField.ValueOf(reflect.ValueOf(e.Resource))
-	return fmt.Sprintf("%v_%v_%v zero=%v", schema.ModelType.Name(), primary, e.Column)
+	return fmt.Sprintf("%v_%v_%v", schema.ModelType.Name(), primary, e.Column)
 }
 
 // Error show error message

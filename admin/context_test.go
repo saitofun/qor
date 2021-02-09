@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/saitofun/qor/admin"
-	. "github.com/saitofun/qor/admin/tests/dummy"
-	"github.com/saitofun/qor/qor"
-	"github.com/saitofun/qor/roles"
+	"github.com/qor/admin"
+	. "github.com/qor/admin/tests/dummy"
+	"github.com/qor/qor"
+	"github.com/qor/roles"
 )
 
 // Template helpers test

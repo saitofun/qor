@@ -15,15 +15,15 @@ import (
 	"testing"
 
 	"github.com/jinzhu/configor"
-	"github.com/saitofun/qor/gorm"
-	"github.com/saitofun/qor/media"
-	"github.com/saitofun/qor/media/oss"
-	"github.com/saitofun/qor/oss/s3"
-	"github.com/saitofun/qor/utils/test_utils"
+	"github.com/jinzhu/gorm"
+	"github.com/qor/media"
+	"github.com/qor/media/oss"
+	"github.com/qor/oss/s3"
+	"github.com/qor/qor/test/utils"
 )
 
 var (
-	db       = test_utils.TestDB()
+	db       = utils.TestDB()
 	S3Config = struct {
 		AccessKeyID     string `env:"AWS_ACCESS_KEY_ID"`
 		SecretAccessKey string `env:"AWS_SECRET_ACCESS_KEY"`
@@ -68,12 +68,9 @@ type User struct {
 }
 
 func init() {
-	if err := db.Migrator().DropTable(&User{}); err != nil {
+	if err := db.DropTableIfExists(&User{}).Error; err != nil {
 		panic(err)
 	}
-	// if err := db.DropTableIfExists(&User{}).Error; err != nil {
-	// 	panic(err)
-	// }
 	db.AutoMigrate(&User{})
 	media.RegisterCallbacks(db)
 }

@@ -18,9 +18,7 @@ type (
 	Config    = gorm.Config
 	Statement = gorm.Statement
 	Session   = gorm.Session
-
-	Field  = schema.Field
-	Schema = schema.Schema
+	Field     = schema.Field
 )
 
 // gorm v2 func defines here
@@ -53,7 +51,7 @@ var (
 	ErrDryRunModeUnsupported = gorm.ErrDryRunModeUnsupported
 )
 
-func ModelToSchema(model interface{}, db ...*gorm.DB) (*Schema, error) {
+func ModelToSchema(model interface{}, db ...*gorm.DB) (*schema.Schema, error) {
 	var namer schema.Namer = schema.NamingStrategy{}
 	if len(db) > 0 && db[0] != nil && db[0].Config != nil {
 		namer = db[0].Config.NamingStrategy

@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/saitofun/qor/gorm"
-	"github.com/saitofun/qor/qor"
+	"github.com/jinzhu/gorm"
+	"github.com/qor/qor"
 )
 
 // SettingsStorageInterface settings storage interface
@@ -36,11 +36,11 @@ type settings struct{}
 func (settings) Get(key string, value interface{}, context *Context) error {
 	var (
 		settings  = []QorAdminSetting{}
-		tx        = context.GetDB()
+		tx        = context.GetDB().New()
 		resParams = ""
 		userID    = ""
 	)
-	sqlCondition := fmt.Sprintf("%v = ? AND (resource = ? OR resource = ?) AND (user_id = ? OR user_id = ?)", tx.Statement.Quote("key"))
+	sqlCondition := fmt.Sprintf("%v = ? AND (resource = ? OR resource = ?) AND (user_id = ? OR user_id = ?)", tx.NewScope(nil).Quote("key"))
 
 	if context.Resource != nil {
 		resParams = context.Resource.ToParam()
@@ -64,7 +64,7 @@ func (settings) Get(key string, value interface{}, context *Context) error {
 // Save save admin settings
 func (settings) Save(key string, value interface{}, res *Resource, user qor.CurrentUser, context *Context) error {
 	var (
-		tx          = context.GetDB()
+		tx          = context.GetDB().New()
 		result, err = json.Marshal(value)
 		resParams   = ""
 		userID      = ""

@@ -82,7 +82,7 @@ func ResetDBTables(db *gorm.DB, tables ...interface{}) {
 
 // Truncate receives table arguments and truncate their content in database.
 func Truncate(db *gorm.DB, givenTables ...interface{}) {
-	// We need to iterate throught the list in reverse order of
+	// We need to iterate through the list in reverse order of
 	// creation, since later tables may have constraints or
 	// dependencies on earlier tables.
 	len := len(givenTables)

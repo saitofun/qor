@@ -6,10 +6,10 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/saitofun/qor/media"
-	"github.com/saitofun/qor/oss"
-	"github.com/saitofun/qor/oss/filesystem"
-	"github.com/saitofun/qor/qor/utils"
+	"github.com/qor/media"
+	"github.com/qor/oss"
+	"github.com/qor/oss/filesystem"
+	"github.com/qor/qor/utils"
 )
 
 var (

@@ -18,12 +18,12 @@ import (
 	"time"
 
 	"github.com/gosimple/slug"
+	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/inflection"
-	"github.com/saitofun/qor/admin"
-	"github.com/saitofun/qor/gorm"
-	"github.com/saitofun/qor/qor"
-	"github.com/saitofun/qor/qor/resource"
-	"github.com/saitofun/qor/qor/utils"
+	"github.com/qor/admin"
+	"github.com/qor/qor"
+	"github.com/qor/qor/resource"
+	"github.com/qor/qor/utils"
 )
 
 // CropOption includes crop options
@@ -247,7 +247,7 @@ func (b Base) IsSVG() bool {
 }
 
 func init() {
-	admin.RegisterViewPath("github.com/saitofun/qor/media/views")
+	admin.RegisterViewPath("github.com/qor/media/views")
 }
 
 // ConfigureQorMetaBeforeInitialize configure this field for Qor Admin
