@@ -20,7 +20,7 @@ require (
 	github.com/gosimple/slug v1.9.0
 	github.com/imkira/go-interpol v1.1.0 // indirect
 	github.com/jinzhu/configor v1.2.1
-	github.com/jinzhu/gorm v1.9.16 // indirect
+	github.com/jinzhu/gorm v1.9.16
 	github.com/jinzhu/inflection v1.0.0
 	github.com/jinzhu/now v1.1.1
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect

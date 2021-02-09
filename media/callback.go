@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 
+	gorm1 "github.com/jinzhu/gorm"
 	"github.com/saitofun/qor/gorm"
 	"github.com/saitofun/qor/serializable_meta"
 )
@@ -14,7 +15,7 @@ var (
 	MediaLibraryURL = ""
 )
 
-func cropField(field *gorm.Field, scope *gorm.Scope) (cropped bool) {
+func cropField(field *gorm1.Field, scope *gorm.Scope) (cropped bool) {
 	if field.Field.CanAddr() {
 		// TODO Handle scanner
 		if media, ok := field.Field.Addr().Interface().(Media); ok && !media.Cropped() {

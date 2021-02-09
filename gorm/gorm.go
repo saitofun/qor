@@ -14,10 +14,10 @@ import (
 
 // gorm v2 type defines here
 type (
-	DB        = gorm.DB
 	Model     = gorm.Model // Model based columns: autoincrement id and time fields
 	Config    = gorm.Config
 	Statement = gorm.Statement
+	Session   = gorm.Session
 
 	Field  = schema.Field
 	Schema = schema.Schema
@@ -120,8 +120,3 @@ func isBlank(value reflect.Value) bool {
 	}
 	return reflect.DeepEqual(value.Interface(), reflect.Zero(value.Type()).Interface())
 }
-
-// type (
-// 	Scope = gorm1.Scope
-// 	DB1   = gorm1.DB
-// )

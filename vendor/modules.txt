@@ -153,6 +153,7 @@ github.com/jackc/pgx/v4/stdlib
 github.com/jinzhu/configor
 # github.com/jinzhu/gorm v1.9.16
 ## explicit
+github.com/jinzhu/gorm
 # github.com/jinzhu/inflection v1.0.0
 ## explicit
 github.com/jinzhu/inflection
