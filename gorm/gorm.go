@@ -14,41 +14,25 @@ import (
 
 // gorm v2 type defines here
 type (
-	Model     = gorm.Model // Model based columns: autoincrement id and time fields
-	Config    = gorm.Config
-	Statement = gorm.Statement
-	Session   = gorm.Session
-	Field     = schema.Field
-)
-
-// gorm v2 func defines here
-var (
-	Open = gorm.Open
+	Model        = gorm.Model // Model based columns: autoincrement id and time fields
+	Statement    = gorm.Statement
+	Session      = gorm.Session
+	Relationship = schema.Relationship
 )
 
 // gorm.logger.LogLevel
 const (
-	DBLogSilent logger.LogLevel = iota + 1
-	DBLogError
-	DBLogWarn
-	DBLogInfo
+	LogSilent logger.LogLevel = iota + 1
+	LogError
+	LogWarn
+	LogInfo
 )
 
-// gorm error defines here
-var (
-	ErrRecordNotFound        = gorm.ErrRecordNotFound
-	ErrInvalidTransaction    = gorm.ErrInvalidTransaction
-	ErrNotImplemented        = gorm.ErrNotImplemented
-	ErrMissingWhereClause    = gorm.ErrMissingWhereClause
-	ErrUnsupportedRelation   = gorm.ErrUnsupportedRelation
-	ErrPrimaryKeyRequired    = gorm.ErrPrimaryKeyRequired
-	ErrModelValueRequired    = gorm.ErrModelValueRequired
-	ErrInvalidData           = gorm.ErrInvalidData
-	ErrUnsupportedDriver     = gorm.ErrUnsupportedDriver
-	ErrRegistered            = gorm.ErrRegistered
-	ErrInvalidField          = gorm.ErrInvalidField
-	ErrEmptySlice            = gorm.ErrEmptySlice
-	ErrDryRunModeUnsupported = gorm.ErrDryRunModeUnsupported
+const (
+	HasOne    = schema.HasOne
+	HasMany   = schema.HasMany
+	BelongsTo = schema.BelongsTo
+	Many2Many = schema.Many2Many
 )
 
 func ModelToSchema(model interface{}, db ...*gorm.DB) (*schema.Schema, error) {
@@ -59,15 +43,15 @@ func ModelToSchema(model interface{}, db ...*gorm.DB) (*schema.Schema, error) {
 	return schema.Parse(model, &sync.Map{}, namer)
 }
 
-func ReflectFieldValue(model interface{}, field *Field) interface{} {
+func ReflectFieldValue(model interface{}, field *schema.Field) interface{} {
 	return field.ReflectValueOf(reflect.Indirect(reflect.ValueOf(model))).Interface()
 }
 
-func ReflectIndirectFieldValue(model interface{}, field *Field) interface{} {
+func ReflectIndirectFieldValue(model interface{}, field *schema.Field) interface{} {
 	return reflect.Indirect(reflect.ValueOf(ReflectFieldValue(model, field))).Interface()
 }
 
-func PrimaryFields(model interface{}) []*Field {
+func PrimaryFields(model interface{}) []*schema.Field {
 	if schema, err := ModelToSchema(model); err != nil {
 		return nil
 	} else {
@@ -75,7 +59,7 @@ func PrimaryFields(model interface{}) []*Field {
 	}
 }
 
-func PrimaryField(model interface{}) *Field {
+func PrimaryField(model interface{}) *schema.Field {
 	if schema, err := ModelToSchema(model); err != nil {
 		return nil
 	} else {
@@ -97,7 +81,7 @@ func PrimaryKeyValue(model interface{}) interface{} {
 	return ReflectFieldValue(model, schema.PrioritizedPrimaryField)
 }
 
-func IsFieldBlank(model interface{}, field *Field) bool {
+func IsFieldBlank(model interface{}, field *schema.Field) bool {
 	return isBlank(reflect.ValueOf(ReflectFieldValue(model, field)))
 }
 

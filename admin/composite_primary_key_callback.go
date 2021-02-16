@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/jinzhu/gorm"
+	"github.com/saitofun/qor/gorm"
 )
 
 var primaryKeyRegexp = regexp.MustCompile(`primary_key\[.+_.+\]`)
@@ -30,29 +30,31 @@ func (admin Admin) registerCompositePrimaryKeyCallback() {
 
 		callbackProc := db.Callback().Query().Before("gorm:query")
 		callbackName := "qor_admin:composite_primary_key"
-		if callbackProc.Get(callbackName) == nil {
-			callbackProc.Register(callbackName, compositePrimaryKeyQueryCallback)
-		}
+		//if callbackProc.Get(callbackName) == nil {
+		callbackProc.Register(callbackName, compositePrimaryKeyQueryCallback)
+		//}
 
-		callbackProc = db.Callback().RowQuery().Before("gorm:row_query")
-		if callbackProc.Get(callbackName) == nil {
-			callbackProc.Register(callbackName, compositePrimaryKeyQueryCallback)
-		}
+		callbackProc = db.Callback().Row().Before("gorm:row_query")
+		// if callbackProc.Get(callbackName) == nil {
+		callbackProc.Register(callbackName, compositePrimaryKeyQueryCallback)
+		//}
 	}
 }
 
 // DisableCompositePrimaryKeyMode disable composite primary key mode
 var DisableCompositePrimaryKeyMode = "composite_primary_key:query:disable"
 
-func compositePrimaryKeyQueryCallback(scope *gorm.Scope) {
+func compositePrimaryKeyQueryCallback(scope *gorm.DB) {
 	if value, ok := scope.Get(DisableCompositePrimaryKeyMode); ok && value != "" {
 		return
 	}
 
-	tableName := scope.TableName()
-	for _, primaryField := range scope.PrimaryFields() {
+	stmt := scope.Statement
+	tableName := stmt.Table
+	for _, primaryField := range stmt.Schema.PrimaryFields {
 		if value, ok := scope.Get(fmt.Sprintf("primary_key[%v_%v]", tableName, primaryField.DBName)); ok && value != "" {
-			scope.Search.Where(fmt.Sprintf("%v = ?", scope.Quote(primaryField.DBName)), value)
+			stmt.Where(fmt.Sprintf("%v = ?", stmt.Quote(primaryField.DBName)), value)
+			// scope.Search.Where(fmt.Sprintf("%v = ?", scope.Quote(primaryField.DBName)), value)
 		}
 	}
 }

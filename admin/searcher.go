@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jinzhu/gorm"
-	"github.com/qor/qor"
-	"github.com/qor/qor/resource"
-	"github.com/qor/qor/utils"
+	"github.com/saitofun/qor/gorm"
+	"github.com/saitofun/qor/qor"
+	"github.com/saitofun/qor/qor/resource"
+	"github.com/saitofun/qor/qor/utils"
 )
 
 // filterRegexp used to parse url query to get filters

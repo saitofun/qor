@@ -1,9 +1,9 @@
 package admin
 
 import (
-	"github.com/qor/qor"
-	"github.com/qor/qor/resource"
-	"github.com/qor/qor/utils"
+	"github.com/saitofun/qor/qor"
+	"github.com/saitofun/qor/qor/resource"
+	"github.com/saitofun/qor/qor/utils"
 )
 
 // RichEditorConfig rich editor meta config

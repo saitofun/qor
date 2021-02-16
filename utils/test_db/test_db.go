@@ -1,4 +1,4 @@
-package test_utils
+package test_db
 
 import (
 	"fmt"
@@ -19,7 +19,7 @@ func TestDB() *gorm.DB {
 		db     *gorm.DB
 		cfg    = &gorm.Config{DisableForeignKeyConstraintWhenMigrating: true} // 外键约束会在migrate的时候自动关联, 需要手动关闭
 		dbuser = "root"
-		dbpwd  = ""
+		dbpwd  = "fuckyou"
 		dbname = "qor_test"
 		dbhost = "localhost"
 	)
@@ -68,7 +68,7 @@ func TestDB() *gorm.DB {
 	}
 
 	if os.Getenv("DEBUG") != "" {
-		db.Logger.LogMode(gorm.DBLogInfo)
+		db.Logger.LogMode(gorm.LogInfo)
 	}
 
 	return db

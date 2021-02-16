@@ -6,10 +6,11 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/saitofun/qor/gorm"
 	"github.com/saitofun/qor/qor"
 	"github.com/saitofun/qor/qor/resource"
 	"github.com/saitofun/qor/qor/utils"
-	testutils "github.com/saitofun/qor/utils/test_utils"
+	"github.com/saitofun/qor/utils/test_db"
 )
 
 func format(value interface{}) string {
@@ -18,7 +19,7 @@ func format(value interface{}) string {
 
 func checkMeta(record interface{}, meta *resource.Meta, value interface{}, t *testing.T, expectedValues ...string) {
 	var (
-		context       = &qor.Context{DB: testutils.TestDB()}
+		context       = &qor.Context{DB: test_db.TestDB()}
 		metaValue     = &resource.MetaValue{Name: meta.Name, Value: value}
 		expectedValue = fmt.Sprint(value)
 	)
@@ -240,4 +241,65 @@ func TestSliceMetaValuerAndSetter(t *testing.T) {
 	}
 
 	checkMeta(user, meta4, []string{"name1", "name2"}, t)
+}
+
+type User struct {
+	gorm.Model
+	Name      string
+	CompanyID int64
+	Company   Company `gorm:"foreignKey:CompanyID"`
+}
+
+type Company struct {
+	gorm.Model
+	Name       string
+	OrganizeID int64
+	Organize   *Organize `gorm:"foreignKey:OrganizeID"`
+}
+
+type Organize struct {
+	gorm.Model
+	Name string
+}
+
+func TestUtil(t *testing.T) {
+	var i, j int
+	fmt.Println(reflect.ValueOf(i).Type() == reflect.ValueOf(j).Type())
+}
+
+func TestSetupValuer(t *testing.T) {
+	db := test_db.TestDB()
+
+	if err := db.AutoMigrate(&User{}, &Company{}, &Organize{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
+	user := &User{}
+	meta := &resource.Meta{
+		Name:         "Company.OrganizeID",
+		BaseResource: resource.New(user),
+	}
+	ctx := &qor.Context{
+		DB:     db,
+		Config: &qor.Config{DB: db},
+	}
+
+	meta.PreInitialize()
+	meta.Initialize()
+
+	fmt.Println(meta.Valuer(&User{}, ctx))
+	meta.Setter(user, &resource.MetaValue{
+		Name:  "Company",
+		Value: nil,
+		Index: 0,
+	}, ctx)
+	fmt.Println(meta.Valuer(user, ctx))
+
+	fmt.Println(meta.Valuer(&User{}, ctx))
+	meta.Setter(user, &resource.MetaValue{
+		Name:  "Company",
+		Value: &Company{Name: "XXXX"},
+		Index: 0,
+	}, ctx)
+	fmt.Println(meta.Valuer(user, ctx))
 }

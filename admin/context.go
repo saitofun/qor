@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"path/filepath"
 
-	"github.com/qor/qor"
-	"github.com/qor/qor/utils"
-	"github.com/qor/roles"
-	"github.com/qor/session"
+	"github.com/saitofun/qor/qor"
+	"github.com/saitofun/qor/qor/utils"
+	"github.com/saitofun/qor/roles"
+	"github.com/saitofun/qor/session"
 )
 
 // Context admin context, which is used for admin controller

@@ -3,8 +3,8 @@ package admin
 import (
 	"testing"
 
-	"github.com/qor/qor"
-	"github.com/qor/qor/test/utils"
+	"github.com/saitofun/qor/qor"
+	"github.com/saitofun/qor/utils/test_db"
 )
 
 type User struct {
@@ -12,7 +12,7 @@ type User struct {
 	ID   uint64
 }
 
-var db = utils.TestDB()
+var db = test_db.TestDB()
 
 func TestAddResource(t *testing.T) {
 	admin := New(&qor.Config{DB: db})

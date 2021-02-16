@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/jinzhu/inflection"
-	"github.com/qor/qor/utils"
-	"github.com/qor/roles"
+	"github.com/saitofun/qor/qor/utils"
+	"github.com/saitofun/qor/roles"
 )
 
 // XMLTransformer xml transformer
@@ -158,7 +158,8 @@ var XMLMarshalDefaultHandler = func(xmlStruct XMLStruct, e *xml.Encoder, start x
 					}
 
 					// has_one, has_many checker to avoid dead loop
-					if meta.Resource != nil && (meta.FieldStruct != nil && meta.FieldStruct.Relationship != nil && (meta.FieldStruct.Relationship.Kind == "has_one" || meta.FieldStruct.Relationship.Kind == "has_many" || meta.Type == "single_edit" || meta.Type == "collection_edit")) {
+					// @todo
+					if meta.Resource != nil /* && (meta.FieldStruct != nil && meta.FieldStruct.Relationship != nil && (meta.FieldStruct.Relationship.Kind == "has_one" || meta.FieldStruct.Relationship.Kind == "has_many" || meta.Type == "single_edit" || meta.Type == "collection_edit"))*/ {
 						if err := e.EncodeElement(xmlStruct.Initialize(context.RawValueOf(xmlStruct.Result, meta), meta.Resource), metaStart); err != nil {
 							return err
 						}

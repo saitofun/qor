@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/qor/admin"
+	"github.com/saitofun/qor/admin"
 )
 
 func TestXMLTransformerEncode(t *testing.T) {

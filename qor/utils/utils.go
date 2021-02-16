@@ -168,28 +168,24 @@ func Stringify(object interface{}) string {
 		return obj.Stringify()
 	}
 
-	scope := gorm.Scope{Value: object}
+	schema, _ := gorm.Parse(object)
+	value := reflect.ValueOf(object)
 	for _, column := range []string{"Name", "Title", "Code"} {
-		if field, ok := scope.FieldByName(column); ok {
-			if field.Field.IsValid() {
-				result := field.Field.Interface()
-				if valuer, ok := result.(driver.Valuer); ok {
-					if result, err := valuer.Value(); err == nil {
-						return fmt.Sprint(result)
-					}
+		if f, ok := schema.FieldsByName[column]; ok {
+			v, _ := f.ValueOf(value)
+			if valuer, ok := v.(driver.Valuer); ok {
+				if ret, err := valuer.Value(); err == nil {
+					return fmt.Sprint(ret)
 				}
-				return fmt.Sprint(result)
+				return fmt.Sprint(v)
 			}
 		}
 	}
-
-	if scope.PrimaryField() != nil {
-		if scope.PrimaryKeyZero() {
+	if f := schema.PrioritizedPrimaryField; f != nil {
+		if _, zero := f.ValueOf(value); zero {
 			return ""
 		}
-		return fmt.Sprintf("%v#%v", scope.GetModelStruct().ModelType.Name(), scope.PrimaryKeyValue())
 	}
-
 	return fmt.Sprint(reflect.Indirect(reflect.ValueOf(object)).Interface())
 }
 

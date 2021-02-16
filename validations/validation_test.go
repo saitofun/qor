@@ -9,7 +9,7 @@ import (
 	"github.com/asaskevich/govalidator"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/saitofun/qor/gorm"
-	"github.com/saitofun/qor/utils/test_utils"
+	"github.com/saitofun/qor/utils/test_db"
 	"github.com/saitofun/qor/validations"
 )
 
@@ -92,7 +92,7 @@ func (language *Language) Validate(db *gorm.DB) error {
 }
 
 func init() {
-	db = test_utils.TestDB()
+	db = test_db.TestDB()
 	validations.RegisterCallbacks(db)
 	tables := []interface{}{&User{}, &Company{}, &CreditCard{}, &Address{}, &Language{}}
 	for _, table := range tables {

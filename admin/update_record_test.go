@@ -13,9 +13,11 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/qor/admin/tests/dummy"
-	"github.com/qor/qor"
-	"github.com/qor/qor/resource"
+	. "github.com/saitofun/qor/admin/tests/dummy"
+	"github.com/saitofun/qor/qor"
+	"github.com/saitofun/qor/qor/resource"
+
+	gorm1 "github.com/jinzhu/gorm"
 )
 
 func TestUpdateRecord(t *testing.T) {
@@ -41,8 +43,11 @@ func TestUpdateRecord(t *testing.T) {
 }
 
 func TestUpdateRecordWithRollback(t *testing.T) {
+	(&gorm1.DB{}).Model(&User{}).AddUniqueIndex()
 	db.Exec("TRUNCATE TABLE users")
 	db.Model(&User{}).AddUniqueIndex("uix_user_name", "name")
+	db.Model(&User{}).Migrator().CreateIndex("uix_user_name", "name")
+	db.Model(&User{}).Exec("")
 
 	userR := Admin.GetResource("User")
 	userR.AddProcessor(&resource.Processor{

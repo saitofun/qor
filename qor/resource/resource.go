@@ -27,6 +27,11 @@ type ConfigureResourceBeforeInitializeInterface interface {
 	ConfigureQorResourceBeforeInitialize(Resourcer)
 }
 
+type (
+	Handler          func(ret interface{}, ctx *qor.Context) error
+	HandlerWithMetas func(ret interface{}, metas *MetaValues, ctx *qor.Context) error
+)
+
 // ConfigureResourceInterface if a struct implemented this interface, it will be called after configured by user
 type ConfigureResourceInterface interface {
 	ConfigureQorResource(Resourcer)
@@ -36,19 +41,22 @@ type ConfigureResourceInterface interface {
 type Resource struct {
 	Name            string
 	Value           interface{}
-	PrimaryFields   []*gorm.StructField
-	FindManyHandler func(interface{}, *qor.Context) error
-	FindOneHandler  func(interface{}, *MetaValues, *qor.Context) error
-	SaveHandler     func(interface{}, *qor.Context) error
-	DeleteHandler   func(interface{}, *qor.Context) error
+	FindOneHandler  HandlerWithMetas
+	FindManyHandler Handler
+	SaveHandler     Handler
+	DeleteHandler   Handler
 	Permission      *roles.Permission
 	Validators      []*Validator
 	Processors      []*Processor
+	PrimaryFields   []*gorm.Field
 	primaryField    *gorm.Field
 }
 
 // New initialize qor resource
 func New(value interface{}) *Resource {
+	if value == nil || !reflect.ValueOf(value).CanSet() {
+		utils.ExitWithMsg("Resource should be instantiated be a none-nil value")
+	}
 	var (
 		name = utils.HumanizeString(utils.ModelType(value).Name())
 		res  = &Resource{Value: value, Name: name}
@@ -69,32 +77,40 @@ func (res *Resource) GetResource() *Resource {
 
 // SetPrimaryFields set primary fields
 func (res *Resource) SetPrimaryFields(fields ...string) error {
-	scope := gorm.Scope{Value: res.Value}
+	schema, _ := gorm.Parse(res.Value)
 	res.PrimaryFields = nil
 
-	if len(fields) > 0 {
-		for _, fieldName := range fields {
-			if field, ok := scope.FieldByName(fieldName); ok {
-				res.PrimaryFields = append(res.PrimaryFields, field.StructField)
-			} else {
-				return fmt.Errorf("%v is not a valid field for resource %v", fieldName, res.Name)
-			}
+	if len(fields) == 0 {
+		if len(schema.PrimaryFields) == 0 &&
+			schema.PrioritizedPrimaryField == nil {
+			return fmt.Errorf("no valid primary field from schema %v", res.Name)
 		}
-		return nil
+		for _, f := range schema.PrimaryFields {
+			res.PrimaryFields = append(res.PrimaryFields, f)
+		}
+		res.primaryField = schema.PrioritizedPrimaryField
+	} else {
+		for _, fn := range fields {
+			if f, ok := schema.FieldsByName[fn]; ok {
+				res.PrimaryFields = append(res.PrimaryFields, f)
+				if f == schema.PrioritizedPrimaryField {
+					res.primaryField = f
+				}
+				continue
+			}
+			return fmt.Errorf("%v is not field for resource %v", fn, res.Name)
+		}
 	}
-
-	if primaryField := scope.PrimaryField(); primaryField != nil {
-		res.PrimaryFields = []*gorm.StructField{primaryField.StructField}
-		return nil
+	if len(res.PrimaryFields) == 0 && res.primaryField == nil {
+		return fmt.Errorf("no valid primary field for resource %v", res.Name)
 	}
-
-	return fmt.Errorf("no valid primary field for resource %v", res.Name)
+	return nil
 }
 
 // Validator validator struct
 type Validator struct {
 	Name    string
-	Handler func(interface{}, *MetaValues, *qor.Context) error
+	Handler HandlerWithMetas
 }
 
 // AddValidator add validator to resource, it will invoked when creating, updating, and will rollback the change if validator return any error

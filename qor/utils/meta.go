@@ -99,3 +99,48 @@ func ToFloat(value interface{}) float64 {
 		panic("failed to parse float: " + result)
 	}
 }
+
+// func GetSubModel(model interface{}, field string, ctx *qor.Context) interface{} {
+// 	value := reflect.Indirect(reflect.ValueOf(model))
+//
+// 	if !value.CanSet() {
+// 		return nil
+// 	}
+//
+//
+//
+//
+// 	if !strings.Contains(field, ".") {
+// 		sub := value.FieldByName(field)
+// 		if !sub.IsValid() {
+// 			return nil
+// 		}
+// 		if ctx == nil || ctx.GetDB() == nil {
+//
+// 		}
+// 	}
+//
+// 	names := strings.Split(field, ".")
+//
+// 	for _, field := range fields[:len(fields)-1] {
+// 		if model.CanAddr() {
+// 			submodel := model.FieldByName(field)
+// 			if ctx != nil && ctx.GetDB() != nil && ctx.GetDB().NewRecord(submodel.Interface()) && !ctx.GetDB().NewRecord(model.Addr().Interface()) {
+// 				if submodel.CanAddr() {
+// 					ctx.GetDB().Model(model.Addr().Interface()).Association(field).Find(submodel.Addr().Interface())
+// 					model = submodel
+// 				} else {
+// 					break
+// 				}
+// 			} else {
+// 				model = submodel
+// 			}
+// 		}
+// 	}
+//
+// 	if model.CanAddr() {
+// 		return model.Addr().Interface()
+// 	}
+// 	return nil
+// }
+//

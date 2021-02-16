@@ -163,13 +163,14 @@ func (meta *Meta) PreInitialize() error {
 		return nil
 	}
 
-	var nestedField = strings.Contains(meta.FieldName, ".")
-	var scope = &gorm.Scope{Value: meta.BaseResource.GetResource().Value}
-	if nestedField {
-		subModel, name := parseNestedField(reflect.ValueOf(meta.BaseResource.GetResource().Value), meta.FieldName)
-		meta.FieldStruct = getField(scope.New(subModel.Interface()).GetStructFields(), name)
+	value := meta.BaseResource.GetResource().Value
+	schema, _ := gorm.Parse(value)
+	if strings.Contains(meta.FieldName, ".") {
+		subModel, name := parseNestedField(reflect.ValueOf(value), meta.FieldName)
+		schema, _ = gorm.Parse(subModel.Interface())
+		meta.FieldStruct = getField(schema.Fields, name)
 	} else {
-		meta.FieldStruct = getField(scope.GetStructFields(), meta.FieldName)
+		meta.FieldStruct = getField(schema.Fields, meta.FieldName)
 	}
 	return nil
 }
@@ -193,10 +194,8 @@ func (meta *Meta) Initialize() error {
 }
 
 func setupValuer(meta *Meta, fieldName string, record interface{}) {
-	nestedField := strings.Contains(fieldName, ".")
-
 	// Setup nested fields
-	if nestedField {
+	if strings.Contains(fieldName, ".") {
 		fieldNames := strings.Split(fieldName, ".")
 		setupValuer(meta, strings.Join(fieldNames[1:], "."), getNestedModel(record, strings.Join(fieldNames[0:2], "."), nil))
 
@@ -209,6 +208,37 @@ func setupValuer(meta *Meta, fieldName string, record interface{}) {
 
 	if meta.FieldStruct != nil {
 		meta.Valuer = func(value interface{}, context *qor.Context) interface{} {
+			db := context.GetDB()
+			db.Statement.Parse(value)
+			stmt := db.Statement
+			schema := stmt.Schema
+
+			if f, ok := schema.FieldsByName[fieldName]; ok {
+				var fr *gorm.Relationship
+				for _, rel := range schema.Relationships.Relations {
+					if rel.Field == f {
+						fr = rel
+						break
+					}
+				}
+				v, zero := f.ValueOf(reflect.ValueOf(value))
+				if fr != nil && stmt.ReflectValue.CanAddr() && !zero {
+					if (fr.Type == gorm.HasMany || fr.Type == gorm.Many2Many) && stmt.ReflectValue.Len() == 0 {
+						db.Model(value).Related(stmt.ReflectValue.Addr().Interface(), fieldName)
+					} else if fr.Type == gorm.HasOne || fr.Type == gorm.BelongsTo {
+						db.Session(&gorm.Session{}).Statement.Parse(v)
+						stmt = db.Statement
+						schema = db.Statement.Schema
+						if _, zero := schema.PrioritizedPrimaryField.ValueOf(reflect.ValueOf(v)); zero {
+							if f.FieldType.Kind() == reflect.Ptr && stmt.ReflectValue.IsNil() {
+								stmt.ReflectValue.Set(reflect.New(f.FieldType.Elem()))
+							}
+							db.Model(value).Related(stmt.ReflectValue.Addr().Interface(), fieldName)
+						}
+					}
+				}
+				return v
+			}
 			scope := context.GetDB().NewScope(value)
 
 			if f, ok := scope.FieldByName(fieldName); ok {

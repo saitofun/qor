@@ -26,6 +26,12 @@ type Context struct {
 // Clone clone current context
 func (context *Context) Clone() *Context {
 	var clone = *context
+	if clone.Config.DB != nil {
+		clone.Config.DB = clone.Config.DB.Session(&gorm.Session{})
+	}
+	if clone.DB != nil {
+		clone.DB = clone.DB.Session(&gorm.Session{})
+	}
 	return &clone
 }
 

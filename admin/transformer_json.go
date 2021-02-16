@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"reflect"
 
-	"github.com/qor/roles"
+	"github.com/saitofun/qor/roles"
 )
 
 // JSONTransformer json transformer
@@ -74,8 +74,9 @@ func convertObjectToJSONMap(res *Resource, context *Context, value interface{}, 
 		values := map[string]interface{}{}
 		for _, meta := range metas {
 			if meta.HasPermission(roles.Read, context.Context) {
+				// @todo
 				// has_one, has_many checker to avoid dead loop
-				if meta.Resource != nil && (meta.FieldStruct != nil && meta.FieldStruct.Relationship != nil && (meta.FieldStruct.Relationship.Kind == "has_one" || meta.FieldStruct.Relationship.Kind == "has_many" || meta.Type == "single_edit" || meta.Type == "collection_edit")) {
+				if meta.Resource != nil /* && (meta.FieldStruct != nil && meta.FieldStruct.Relationship != nil && (meta.FieldStruct.Relationship.Kind == "has_one" || meta.FieldStruct.Relationship.Kind == "has_many" || meta.Type == "single_edit" || meta.Type == "collection_edit"))*/ {
 					values[meta.GetName()] = convertObjectToJSONMap(meta.Resource, context, context.RawValueOf(value, meta), kind)
 				} else {
 					values[meta.GetName()] = context.FormattedValueOf(value, meta)
