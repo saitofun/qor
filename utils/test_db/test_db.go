@@ -12,14 +12,14 @@ import (
 	"gorm.io/driver/sqlite"
 )
 
-// TestDB initialize a db for testing
-func TestDB() *gorm.DB {
+// NewTestDB initialize a db for testing
+func NewTestDB() *gorm.DB {
 	var (
 		err    error
 		db     *gorm.DB
 		cfg    = &gorm.Config{DisableForeignKeyConstraintWhenMigrating: true} // 外键约束会在migrate的时候自动关联, 需要手动关闭
 		dbuser = "root"
-		dbpwd  = "fuckyou"
+		dbpwd  = "root"
 		dbname = "qor_test"
 		dbhost = "localhost"
 	)

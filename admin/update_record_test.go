@@ -2,6 +2,7 @@ package admin_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -14,10 +15,9 @@ import (
 	"testing"
 
 	. "github.com/saitofun/qor/admin/tests/dummy"
+	"github.com/saitofun/qor/gorm"
 	"github.com/saitofun/qor/qor"
 	"github.com/saitofun/qor/qor/resource"
-
-	gorm1 "github.com/jinzhu/gorm"
 )
 
 func TestUpdateRecord(t *testing.T) {
@@ -34,7 +34,7 @@ func TestUpdateRecord(t *testing.T) {
 			t.Errorf("Create request should be processed successfully")
 		}
 
-		if db.First(&User{}, "name = ?", user.Name+"_new").RecordNotFound() {
+		if errors.Is(db.First(&User{}, "name = ?", user.Name+"_new").Error, gorm.ErrRecordNotFound) {
 			t.Errorf("User should be updated successfully")
 		}
 	} else {
@@ -43,11 +43,9 @@ func TestUpdateRecord(t *testing.T) {
 }
 
 func TestUpdateRecordWithRollback(t *testing.T) {
-	(&gorm1.DB{}).Model(&User{}).AddUniqueIndex()
 	db.Exec("TRUNCATE TABLE users")
-	db.Model(&User{}).AddUniqueIndex("uix_user_name", "name")
-	db.Model(&User{}).Migrator().CreateIndex("uix_user_name", "name")
-	db.Model(&User{}).Exec("")
+	// db.Model(&User{}).AddUniqueIndex("uix_user_name", "name")
+	db.Exec(`create unique index uix_user_name on users (name)`)
 
 	userR := Admin.GetResource("User")
 	userR.AddProcessor(&resource.Processor{
@@ -110,17 +108,18 @@ func TestUpdateHasOneRecord(t *testing.T) {
 			t.Errorf("User request should be processed successfully")
 		}
 
-		if db.First(&User{}, "name = ?", user.Name+"_new").RecordNotFound() {
+		if errors.Is(db.First(&User{}, "name = ?", user.Name+"_new").Error, gorm.ErrRecordNotFound) {
 			t.Errorf("User should be updated successfully")
 		}
 
 		var creditCard CreditCard
-		if db.Model(&user).Related(&creditCard).RecordNotFound() ||
+		err = db.Model(&user).Association("CreditCard").Find(&creditCard)
+		if errors.Is(err, gorm.ErrRecordNotFound) ||
 			creditCard.Issuer != "UnionPay" || creditCard.ID != user.CreditCard.ID {
 			t.Errorf("Embedded struct should be updated successfully")
 		}
 
-		if !db.First(&CreditCard{}, "number = ? and issuer = ?", "1234567890", "JCB").RecordNotFound() {
+		if !errors.Is(db.First(&CreditCard{}, "number = ? and issuer = ?", "1234567890", "JCB").Error, gorm.ErrRecordNotFound) {
 			t.Errorf("Old embedded struct should be updated")
 		}
 	} else {
@@ -151,21 +150,21 @@ func TestUpdateHasManyRecord(t *testing.T) {
 		}
 
 		var address1 Address
-		if db.First(&address1, "user_id = ? and address1 = ?", user.ID, "address 1.1 new").RecordNotFound() {
+		if errors.Is(db.First(&address1, "user_id = ? and address1 = ?", user.ID, "address 1.1 new").Error, gorm.ErrRecordNotFound) {
 			t.Errorf("Address 1 should be updated successfully")
 		} else if address1.Address2 != "address 1.2" {
 			t.Errorf("Address 1's Address 2 should not be updated")
 		}
 
-		if db.First(&Address{}, "user_id = ? and address1 = ?", user.ID, "address 2.1 new").RecordNotFound() {
+		if errors.Is(db.First(&Address{}, "user_id = ? and address1 = ?", user.ID, "address 2.1 new").Error, gorm.ErrRecordNotFound) {
 			t.Errorf("Address 2 should be updated successfully")
 		}
 
-		if !db.First(&Address{}, "user_id = ? and address1 = ?", user.ID, "address 3.1").RecordNotFound() {
+		if !errors.Is(db.First(&Address{}, "user_id = ? and address1 = ?", user.ID, "address 3.1").Error, gorm.ErrRecordNotFound) {
 			t.Errorf("Address 3 should be destroyed successfully")
 		}
 
-		if db.First(&Address{}, "user_id = ? and address1 = ?", user.ID, "address 4.1").RecordNotFound() {
+		if errors.Is(db.First(&Address{}, "user_id = ? and address1 = ?", user.ID, "address 4.1").Error, gorm.ErrRecordNotFound) {
 			t.Errorf("Address 4 should be created successfully")
 		}
 
@@ -197,11 +196,11 @@ func TestDestroyEmbeddedHasOneRecord(t *testing.T) {
 		}
 
 		var newUser User
-		if db.First(&newUser, "name = ?", user.Name+"_new").RecordNotFound() {
+		if errors.Is(db.First(&newUser, "name = ?", user.Name+"_new").Error, gorm.ErrRecordNotFound) {
 			t.Errorf("User should be updated successfully")
 		}
 
-		if !db.Model(&newUser).Related(&CreditCard{}).RecordNotFound() {
+		if !errors.Is(db.Model(&newUser).Association("CreditCard").Find(&CreditCard{}), gorm.ErrRecordNotFound) {
 			t.Errorf("Embedded struct should be destroyed successfully")
 		}
 	} else {
@@ -230,12 +229,12 @@ func TestUpdateManyToManyRecord(t *testing.T) {
 		}
 
 		var user User
-		if db.First(&user, "name = ?", name+"_new").RecordNotFound() {
+		if errors.Is(db.First(&user, "name = ?", name+"_new").Error, gorm.ErrRecordNotFound) {
 			t.Errorf("User should be updated successfully")
 		}
 
 		var languages []Language
-		db.Model(&user).Related(&languages, "Languages")
+		db.Model(&user).Association("Languages").Find(&languages)
 
 		if len(languages) != 1 {
 			t.Errorf("User should have one languages after update")
@@ -269,7 +268,7 @@ func TestUpdateSelectOne(t *testing.T) {
 		}
 
 		var user User
-		if db.Preload("Company").First(&user, "name = ?", name+"_new").RecordNotFound() {
+		if errors.Is(db.Preload("Company").First(&user, "name = ?", name+"_new").Error, gorm.ErrRecordNotFound) {
 			t.Errorf("User should be updated successfully")
 		}
 
@@ -307,7 +306,7 @@ func TestUpdateAttachment(t *testing.T) {
 				t.Errorf("Create request should be processed successfully")
 			}
 
-			if db.First(&user, "name = ?", name).RecordNotFound() {
+			if errors.Is(db.First(&user, "name = ?", name).Error, gorm.ErrRecordNotFound) {
 				t.Errorf("User should be created successfully")
 			}
 
@@ -335,7 +334,7 @@ func TestUpdateAttachment(t *testing.T) {
 				t.Errorf("Create request should be processed successfully")
 			}
 
-			if db.First(&user, "name = ?", name).RecordNotFound() {
+			if errors.Is(db.First(&user, "name = ?", name).Error, gorm.ErrRecordNotFound) {
 				t.Errorf("User should be created successfully")
 			}
 

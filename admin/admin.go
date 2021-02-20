@@ -7,13 +7,13 @@ import (
 
 	"github.com/jinzhu/inflection"
 	"github.com/saitofun/qor/assetfs"
+	"github.com/saitofun/qor/gorm"
 	"github.com/saitofun/qor/qor"
 	"github.com/saitofun/qor/qor/resource"
 	"github.com/saitofun/qor/qor/utils"
 	"github.com/saitofun/qor/session"
 	"github.com/saitofun/qor/session/manager"
 	"github.com/theplant/cldr"
-	"gorm.io/gorm"
 )
 
 // AdminConfig admin config struct
@@ -99,7 +99,7 @@ func (admin *Admin) SetAssetFS(assetFS assetfs.Interface) {
 	globalAssetFSes = append(globalAssetFSes, assetFS)
 
 	admin.AssetFS.RegisterPath(filepath.Join(utils.AppRoot, "app/views/qor"))
-	admin.RegisterViewPath("github.com/qor/admin/views")
+	admin.RegisterViewPath("github.com/saitofun/qor/admin/views")
 
 	for _, viewPath := range globalViewPaths {
 		admin.RegisterViewPath(viewPath)

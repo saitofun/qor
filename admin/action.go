@@ -5,9 +5,9 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/qor/qor"
-	"github.com/qor/qor/utils"
-	"github.com/qor/roles"
+	"github.com/saitofun/qor/qor"
+	"github.com/saitofun/qor/qor/utils"
+	"github.com/saitofun/qor/roles"
 )
 
 // ActionArgument action argument that used in handle
@@ -18,15 +18,15 @@ type ActionArgument struct {
 	SkipDefaultResponse bool
 }
 
-// Action action definiation
+// Action action definition
 type Action struct {
 	Name        string
 	Label       string
 	Method      string
-	URL         func(record interface{}, context *Context) string
+	URL         func(interface{}, *Context) string
 	URLOpenType string
-	Visible     func(record interface{}, context *Context) bool
-	Handler     func(argument *ActionArgument) error
+	Visible     func(interface{}, *Context) bool
+	Handler     func(*ActionArgument) error
 	Modes       []string
 	Resource    *Resource
 	Permission  *roles.Permission

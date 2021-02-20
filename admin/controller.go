@@ -2,6 +2,7 @@ package admin
 
 import (
 	"crypto/md5"
+	"errors"
 	"fmt"
 	"mime"
 	"net/http"
@@ -103,12 +104,16 @@ func (ac *Controller) renderSingleton(context *Context) (interface{}, bool, erro
 
 	if context.Resource.Config.Singleton {
 		result = context.Resource.NewStruct()
-		if err = context.Resource.CallFindMany(result, context.Context); err == gorm.ErrRecordNotFound {
+		err = context.Resource.CallFindMany(result, context.Context)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			context.Execute("new", result)
 			return nil, true, nil
 		}
 	} else {
 		result, err = context.FindOne()
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			context.Writer.WriteHeader(http.StatusNotFound)
+		}
 	}
 
 	if err == gorm.ErrRecordNotFound {

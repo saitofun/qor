@@ -5,6 +5,7 @@ import (
 	"regexp"
 
 	"github.com/saitofun/qor/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var primaryKeyRegexp = regexp.MustCompile(`primary_key\[.+_.+\]`)
@@ -28,33 +29,28 @@ func (admin Admin) registerCompositePrimaryKeyCallback() {
 			},
 		})
 
-		callbackProc := db.Callback().Query().Before("gorm:query")
-		callbackName := "qor_admin:composite_primary_key"
-		//if callbackProc.Get(callbackName) == nil {
-		callbackProc.Register(callbackName, compositePrimaryKeyQueryCallback)
-		//}
+		name := "qor_admin:composite_primary_key"
 
-		callbackProc = db.Callback().Row().Before("gorm:row_query")
-		// if callbackProc.Get(callbackName) == nil {
-		callbackProc.Register(callbackName, compositePrimaryKeyQueryCallback)
-		//}
+		proc := db.Callback().Query().Before("gorm:query")
+		proc.Register(name, compositePrimaryKeyQueryCallback)
+
+		proc = db.Callback().Row().Before("gorm:row")
+		proc.Register(name, compositePrimaryKeyQueryCallback)
 	}
 }
 
 // DisableCompositePrimaryKeyMode disable composite primary key mode
 var DisableCompositePrimaryKeyMode = "composite_primary_key:query:disable"
 
-func compositePrimaryKeyQueryCallback(scope *gorm.DB) {
-	if value, ok := scope.Get(DisableCompositePrimaryKeyMode); ok && value != "" {
+func compositePrimaryKeyQueryCallback(db *gorm.DB) {
+	if value, ok := db.Get(DisableCompositePrimaryKeyMode); ok && value != "" {
 		return
 	}
-
-	stmt := scope.Statement
-	tableName := stmt.Table
-	for _, primaryField := range stmt.Schema.PrimaryFields {
-		if value, ok := scope.Get(fmt.Sprintf("primary_key[%v_%v]", tableName, primaryField.DBName)); ok && value != "" {
-			stmt.Where(fmt.Sprintf("%v = ?", stmt.Quote(primaryField.DBName)), value)
-			// scope.Search.Where(fmt.Sprintf("%v = ?", scope.Quote(primaryField.DBName)), value)
+	stmt := db.Statement
+	for _, pf := range stmt.Schema.PrimaryFields {
+		pk := fmt.Sprintf("[primary_key[%v_%v]", stmt.Table, pf.DBName)
+		if v, ok := db.Get(pk); ok && v != "" {
+			db = db.Where(clause.Eq{Column: pf.DBName, Value: v})
 		}
 	}
 }

@@ -1,12 +1,14 @@
 package admin_test
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"testing"
 
 	. "github.com/saitofun/qor/admin/tests/dummy"
+	"github.com/saitofun/qor/gorm"
 )
 
 func TestDeleteRecord(t *testing.T) {
@@ -21,7 +23,7 @@ func TestDeleteRecord(t *testing.T) {
 			t.Errorf("Delete request should be processed successfully")
 		}
 
-		if !db.First(&User{}, "name = ?", "delete_record").RecordNotFound() {
+		if !errors.Is(db.First(&User{}, "name = ?", "delete_record").Error, gorm.ErrRecordNotFound) {
 			t.Errorf("User should be deleted successfully")
 		}
 	} else {

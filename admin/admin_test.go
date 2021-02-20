@@ -12,7 +12,7 @@ type User struct {
 	ID   uint64
 }
 
-var db = test_db.TestDB()
+var db = test_db.NewTestDB()
 
 func TestAddResource(t *testing.T) {
 	admin := New(&qor.Config{DB: db})

@@ -17,7 +17,7 @@ type User struct {
 func TestModelToSchema(t *testing.T) {
 	var user User
 	user.ID = 100
-	schema, err := gorm.ModelToSchema(user)
+	schema, err := gorm.Parse(user)
 	if err != nil {
 		fmt.Println(err)
 		return

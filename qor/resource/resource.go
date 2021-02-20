@@ -54,7 +54,7 @@ type Resource struct {
 
 // New initialize qor resource
 func New(value interface{}) *Resource {
-	if value == nil || !reflect.ValueOf(value).CanSet() {
+	if value == nil {
 		utils.ExitWithMsg("Resource should be instantiated be a none-nil value")
 	}
 	var (

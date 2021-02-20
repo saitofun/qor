@@ -19,7 +19,7 @@ func TestResource_ToPrimaryQueryParams(t *testing.T) {
 	}
 	user := &User{}
 
-	db := test_db.TestDB()
+	db := test_db.NewTestDB()
 	db.AutoMigrate(&User{})
 
 	ctx := &qor.Context{

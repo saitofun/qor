@@ -17,12 +17,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/inflection"
-	"github.com/qor/qor"
-	"github.com/qor/qor/utils"
-	"github.com/qor/roles"
-	"github.com/qor/session"
+	"github.com/saitofun/qor/gorm"
+	"github.com/saitofun/qor/qor"
+	"github.com/saitofun/qor/qor/utils"
+	"github.com/saitofun/qor/roles"
+	"github.com/saitofun/qor/session"
 )
 
 // FuncMap funcs map for current context
@@ -237,18 +237,20 @@ func (context *Context) URLFor(value interface{}, resources ...*Resource) string
 			}
 
 			var (
-				scope         = context.GetDB().NewScope(value)
+				val           = reflect.ValueOf(value)
+				schema, _     = gorm.Parse(value)
 				primaryFields []string
 				primaryValues = map[string]string{}
 			)
 
 			for _, primaryField := range res.PrimaryFields {
-				if field, ok := scope.FieldByName(primaryField.Name); ok {
-					primaryFields = append(primaryFields, url.PathEscape(fmt.Sprint(field.Field.Interface())))
+				if field, ok := schema.FieldsByName[primaryField.Name]; ok {
+					val, _ := field.ValueOf(val)
+					primaryFields = append(primaryFields, url.PathEscape(fmt.Sprint(val)))
 				}
 			}
 
-			for _, field := range scope.PrimaryFields() {
+			for _, field := range schema.PrimaryFields {
 				useAsPrimaryField := false
 				for _, primaryField := range res.PrimaryFields {
 					if field.DBName == primaryField.DBName {
@@ -258,7 +260,10 @@ func (context *Context) URLFor(value interface{}, resources ...*Resource) string
 				}
 
 				if !useAsPrimaryField {
-					primaryValues[fmt.Sprintf("primary_key[%v_%v]", scope.TableName(), field.DBName)] = fmt.Sprint(reflect.Indirect(field.Field).Interface())
+					key := fmt.Sprintf("primary_key[%v_%v]",
+						schema.Table, field.DBName)
+					v, _ := field.ValueOf(val)
+					primaryValues[key] = fmt.Sprint(v)
 				}
 			}
 
@@ -379,18 +384,21 @@ func (context *Context) Pagination() *PaginationResult {
 
 func (context *Context) primaryKeyOf(value interface{}) interface{} {
 	if reflect.Indirect(reflect.ValueOf(value)).Kind() == reflect.Struct {
-		scope := &gorm.Scope{Value: value}
-		return fmt.Sprint(scope.PrimaryKeyValue())
+		scope, _ := gorm.Parse(value)
+		v, _ := scope.PrioritizedPrimaryField.ValueOf(reflect.ValueOf(value))
+		return fmt.Sprint(v)
 	}
 	return fmt.Sprint(value)
 }
 
 func (context *Context) uniqueKeyOf(value interface{}) interface{} {
 	if reflect.Indirect(reflect.ValueOf(value)).Kind() == reflect.Struct {
-		scope := &gorm.Scope{Value: value}
+		scope, _ := gorm.Parse(value)
+		val := reflect.ValueOf(value)
 		var primaryValues []string
-		for _, primaryField := range scope.PrimaryFields() {
-			primaryValues = append(primaryValues, fmt.Sprint(primaryField.Field.Interface()))
+		for _, primaryField := range scope.PrimaryFields {
+			v, _ := primaryField.ValueOf(val)
+			primaryValues = append(primaryValues, fmt.Sprint(v))
 		}
 		primaryValues = append(primaryValues, fmt.Sprint(rand.Intn(1000)))
 		return utils.ToParamString(url.QueryEscape(strings.Join(primaryValues, "_")))
@@ -402,7 +410,9 @@ func (context *Context) isNewRecord(value interface{}) bool {
 	if value == nil {
 		return true
 	}
-	return context.GetDB().NewRecord(value)
+	schema, _ := gorm.Parse(value)
+	_, zero := schema.PrioritizedPrimaryField.ValueOf(reflect.ValueOf(value))
+	return zero
 }
 
 func (context *Context) newResourcePath(res *Resource) string {
@@ -544,8 +554,10 @@ func (context *Context) savedFilters() (filters []SavedFilter) {
 
 func (context *Context) renderMeta(meta *Meta, value interface{}, prefix []string, metaType string, writer *bytes.Buffer) {
 	var (
-		err      error
-		funcsMap = context.FuncMap()
+		err       error
+		funcsMap  = context.FuncMap()
+		schema, _ = gorm.Parse(value)
+		pv, zero  = schema.PrioritizedPrimaryField.ValueOf(reflect.ValueOf(value))
 	)
 	prefix = append(prefix, meta.Name)
 
@@ -560,7 +572,7 @@ func (context *Context) renderMeta(meta *Meta, value interface{}, prefix []strin
 			}
 
 			if len(sections) > 0 {
-				for _, field := range context.GetDB().NewScope(value).PrimaryFields() {
+				for _, field := range schema.PrimaryFields {
 					if meta := sections[0].Resource.GetMeta(field.Name); meta != nil {
 						context.renderMeta(meta, value, newPrefix, kind, result)
 					}
@@ -574,7 +586,7 @@ func (context *Context) renderMeta(meta *Meta, value interface{}, prefix []strin
 	}
 
 	funcsMap["has_change_permission"] = func(permissioner HasPermissioner) bool {
-		if context.GetDB().NewScope(value).PrimaryKeyZero() {
+		if zero {
 			return context.hasCreatePermission(permissioner)
 		}
 		return context.hasUpdatePermission(permissioner)
@@ -615,7 +627,6 @@ func (context *Context) renderMeta(meta *Meta, value interface{}, prefix []strin
 	}
 
 	if err == nil {
-		var scope = context.GetDB().NewScope(value)
 		var data = map[string]interface{}{
 			"Context":       context,
 			"BaseResource":  meta.baseResource,
@@ -626,8 +637,8 @@ func (context *Context) renderMeta(meta *Meta, value interface{}, prefix []strin
 			"InputName":     strings.Join(prefix, "."),
 		}
 
-		if !scope.PrimaryKeyZero() {
-			data["InputId"] = utils.ToParamString(fmt.Sprintf("%v_%v_%v", scope.GetModelStruct().ModelType.Name(), scope.PrimaryKeyValue(), meta.Name))
+		if !zero {
+			data["InputId"] = utils.ToParamString(fmt.Sprintf("%v_%v_%v", schema.ModelType.Name(), pv, meta.Name))
 		}
 
 		data["CollectionValue"] = func() [][]string {
@@ -649,22 +660,22 @@ func (context *Context) renderMeta(meta *Meta, value interface{}, prefix []strin
 
 func (context *Context) isEqual(value interface{}, hasValue interface{}) bool {
 	var result string
+	var schema, _ = gorm.Parse(value)
+	var pv, _ = schema.PrioritizedPrimaryField.ValueOf(reflect.ValueOf(value))
 
 	if (value == nil || hasValue == nil) && (value != hasValue) {
 		return false
 	}
 
 	if reflect.Indirect(reflect.ValueOf(hasValue)).Kind() == reflect.Struct {
-		scope := &gorm.Scope{Value: hasValue}
-		result = fmt.Sprint(scope.PrimaryKeyValue())
+		result = fmt.Sprint(pv)
 	} else {
 		result = fmt.Sprint(hasValue)
 	}
 
 	reflectValue := reflect.Indirect(reflect.ValueOf(value))
 	if reflectValue.Kind() == reflect.Struct {
-		scope := &gorm.Scope{Value: value}
-		return fmt.Sprint(scope.PrimaryKeyValue()) == result
+		return fmt.Sprint(pv) == result
 	} else if reflectValue.Kind() == reflect.String {
 		// type UserType string, alias type will panic if do
 		// return reflectValue.Interface().(string) == result
@@ -676,9 +687,11 @@ func (context *Context) isEqual(value interface{}, hasValue interface{}) bool {
 
 func (context *Context) isIncluded(value interface{}, hasValue interface{}) bool {
 	var result string
+	var schema, _ = gorm.Parse(value)
+	var pv, _ = schema.PrioritizedPrimaryField.ValueOf(reflect.ValueOf(value))
+
 	if reflect.Indirect(reflect.ValueOf(hasValue)).Kind() == reflect.Struct {
-		scope := &gorm.Scope{Value: hasValue}
-		result = fmt.Sprint(scope.PrimaryKeyValue())
+		result = fmt.Sprint(pv)
 	} else {
 		result = fmt.Sprint(hasValue)
 	}
@@ -690,16 +703,16 @@ func (context *Context) isIncluded(value interface{}, hasValue interface{}) bool
 		for i := 0; i < reflectValue.Len(); i++ {
 			if value := reflectValue.Index(i); value.IsValid() {
 				if reflect.Indirect(value).Kind() == reflect.Struct {
-					scope := &gorm.Scope{Value: reflectValue.Index(i).Interface()}
-					primaryKeys = append(primaryKeys, scope.PrimaryKeyValue())
+					elementSchema, _ := gorm.Parse(value.Interface())
+					elementPv, _ := elementSchema.PrioritizedPrimaryField.ValueOf(value)
+					primaryKeys = append(primaryKeys, elementPv)
 				} else {
 					primaryKeys = append(primaryKeys, reflect.Indirect(reflectValue.Index(i)).Interface())
 				}
 			}
 		}
 	} else if reflectValue.Kind() == reflect.Struct {
-		scope := &gorm.Scope{Value: value}
-		primaryKeys = append(primaryKeys, scope.PrimaryKeyValue())
+		primaryKeys = append(primaryKeys, pv)
 	} else if reflectValue.Kind() == reflect.String {
 		return strings.Contains(reflectValue.Interface().(string), result)
 	} else if reflectValue.IsValid() {
@@ -1113,7 +1126,7 @@ func (context *Context) t(values ...interface{}) template.HTML {
 
 func (context *Context) isSortableMeta(meta *Meta) bool {
 	for _, attr := range context.Resource.SortableAttrs() {
-		if attr == meta.Name && meta.FieldStruct != nil && meta.FieldStruct.IsNormal && meta.FieldStruct.DBName != "" {
+		if attr == meta.Name && meta.FieldStruct != nil && meta.FieldStruct.FieldType.Comparable() && meta.FieldStruct.DBName != "" {
 			return true
 		}
 	}

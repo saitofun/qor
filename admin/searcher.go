@@ -157,11 +157,12 @@ func (s *Searcher) filterData(context *qor.Context, withDefaultScope bool) *qor.
 	// add order by
 	if orderBy := context.Request.Form.Get("order_by"); orderBy != "" {
 		if regexp.MustCompile("^[a-zA-Z_]+$").MatchString(orderBy) {
-			if field, ok := db.NewScope(s.Context.Resource.Value).FieldByName(strings.TrimSuffix(orderBy, "_desc")); ok {
+			schema, _ := gorm.Parse(s.Context.Resource.Value)
+			if f, ok := schema.FieldsByName[strings.TrimSuffix(orderBy, "_desc")]; ok {
 				if strings.HasSuffix(orderBy, "_desc") {
-					db = db.Order(field.DBName+" DESC", true)
+					db = db.Order(f.DBName + " DESC")
 				} else {
-					db = db.Order(field.DBName, true)
+					db = db.Order(f.DBName)
 				}
 			}
 		}
@@ -298,91 +299,124 @@ func filterResourceByFields(res *Resource, filterFields []filterField, keyword s
 			joinConditionsMap  = map[string][]string{}
 			conditions         []string
 			keywords           []interface{}
-			generateConditions func(field filterField, scope *gorm.Scope)
+			generateConditions func(field filterField, scope *gorm.Schema)
 		)
 
-		generateConditions = func(filterfield filterField, scope *gorm.Scope) {
+		generateConditions = func(filterfield filterField, scope *gorm.Schema) {
 			column := filterfield.FieldName
 			currentScope, nextScope := scope, scope
+			stmt := db.Statement
 
 			if strings.Contains(column, ".") {
 				for _, field := range strings.Split(column, ".") {
 					column = field
 					currentScope = nextScope
-					if field, ok := currentScope.FieldByName(field); ok {
-						if relationship := field.Relationship; relationship != nil {
-							nextScope = currentScope.New(reflect.New(field.Field.Type()).Interface())
-							if relationship.Kind == "many_to_many" {
+					if field, ok := currentScope.FieldsByName[field]; ok {
+						rel := field.Schema.Relationships.Relations[field.Name]
+						if rel != nil {
+							nextScope, _ = gorm.Parse(reflect.New(field.FieldType).Interface())
+							if rel.Type == "many_to_many" {
 								var (
 									condition string
-									jointable = scope.Quote(relationship.JoinTableHandler.Table(scope.DB()))
+									jointable = stmt.Quote(rel.JoinTable.Table)
 									key       = fmt.Sprintf("LEFT JOIN %v ON", jointable)
 								)
 
 								conditions := []string{}
-								for index := range relationship.ForeignDBNames {
+								for index := range rel.References {
+									foriegnFieldDBName := stmt.Quote(rel.References[index].ForeignKey.Name)
 									conditions = append(conditions,
 										fmt.Sprintf("%v.%v = %v.%v",
-											currentScope.QuotedTableName(), scope.Quote(relationship.ForeignFieldNames[index]),
-											jointable, scope.Quote(relationship.ForeignDBNames[index]),
-										))
+											stmt.Quote(currentScope.Table), foriegnFieldDBName,
+											jointable, foriegnFieldDBName))
 								}
+								// for index := range rel.ForeignDBNames {
+								// 	conditions = append(conditions,
+								// 		fmt.Sprintf("%v.%v = %v.%v",
+								// 			currentScope.QuotedTableName(), scope.Quote(rel.ForeignFieldNames[index]),
+								// 			jointable, scope.Quote(rel.ForeignDBNames[index]),
+								// 		))
+								// }
 								condition = strings.Join(conditions, " AND ")
 
 								conditions = []string{}
-								for index := range relationship.AssociationForeignDBNames {
+								for index := range rel.References {
+									foriegnFieldDBName := stmt.Quote(rel.References[index].ForeignKey.Name)
 									conditions = append(conditions,
 										fmt.Sprintf("%v.%v = %v.%v",
-											nextScope.QuotedTableName(), scope.Quote(relationship.AssociationForeignFieldNames[index]),
-											jointable, scope.Quote(relationship.AssociationForeignDBNames[index]),
+											stmt.Quote(nextScope.Table), stmt.Quote(foriegnFieldDBName),
+											jointable, stmt.Quote(foriegnFieldDBName),
 										))
 								}
+								// for index := range rel.AssociationForeignDBNames {
+								// 	conditions = append(conditions,
+								// 		fmt.Sprintf("%v.%v = %v.%v",
+								// 			nextScope.QuotedTableName(), scope.Quote(rel.AssociationForeignFieldNames[index]),
+								// 			jointable, scope.Quote(rel.AssociationForeignDBNames[index]),
+								// 		))
+								// }
 
-								joinConditionsMap[key] = []string{fmt.Sprintf("%v LEFT JOIN %v ON %v", condition, nextScope.QuotedTableName(), strings.Join(conditions, " AND "))}
+								joinConditionsMap[key] = []string{fmt.Sprintf("%v LEFT JOIN %v ON %v", condition, stmt.Quote(nextScope.Table), strings.Join(conditions, " AND "))}
 							} else {
-								key := fmt.Sprintf("LEFT JOIN %v ON", nextScope.QuotedTableName())
-
-								for index := range relationship.ForeignDBNames {
-									if relationship.Kind == "has_one" || relationship.Kind == "has_many" {
+								key := fmt.Sprintf("LEFT JOIN %v ON", stmt.Quote(nextScope.Table))
+								for index := range rel.References {
+									foriegnFieldDBName := stmt.Quote(rel.References[index].ForeignKey.Name)
+									if rel.Type == "has_one" || rel.Type == "has_many" {
 										joinConditionsMap[key] = append(joinConditionsMap[key],
 											fmt.Sprintf("%v.%v = %v.%v",
-												nextScope.QuotedTableName(), scope.Quote(relationship.ForeignDBNames[index]),
-												currentScope.QuotedTableName(), scope.Quote(relationship.AssociationForeignDBNames[index]),
+												stmt.Quote(nextScope.Table), stmt.Quote(foriegnFieldDBName),
+												stmt.Quote(currentScope.Table), stmt.Quote(foriegnFieldDBName),
 											))
-									} else if relationship.Kind == "belongs_to" {
+									} else if rel.Type == "belongs_to" {
 										joinConditionsMap[key] = append(joinConditionsMap[key],
 											fmt.Sprintf("%v.%v = %v.%v",
-												currentScope.QuotedTableName(), scope.Quote(relationship.ForeignDBNames[index]),
-												nextScope.QuotedTableName(), scope.Quote(relationship.AssociationForeignDBNames[index]),
+												stmt.Quote(currentScope.Table), stmt.Quote(foriegnFieldDBName),
+												stmt.Quote(nextScope.Table), stmt.Quote(foriegnFieldDBName),
 											))
 									}
 								}
+
+								// for index := range rel.ForeignDBNames {
+								// 	if rel.Type == "has_one" || rel.Type == "has_many" {
+								// 		joinConditionsMap[key] = append(joinConditionsMap[key],
+								// 			fmt.Sprintf("%v.%v = %v.%v",
+								// 				nextScope.QuotedTableName(), scope.Quote(rel.ForeignDBNames[index]),
+								// 				currentScope.QuotedTableName(), scope.Quote(rel.AssociationForeignDBNames[index]),
+								// 			))
+								// 	} else if rel.Type == "belongs_to" {
+								// 		joinConditionsMap[key] = append(joinConditionsMap[key],
+								// 			fmt.Sprintf("%v.%v = %v.%v",
+								// 				currentScope.QuotedTableName(), scope.Quote(rel.ForeignDBNames[index]),
+								// 				nextScope.QuotedTableName(), scope.Quote(rel.AssociationForeignDBNames[index]),
+								// 			))
+								// 	}
+								// }
 							}
 						}
 					}
 				}
 			}
-			tableName := currentScope.QuotedTableName()
+			tableName := stmt.Quote(currentScope.Table)
 
 			appendString := func(field *gorm.Field) {
 				switch filterfield.Operation {
 				case "equal", "eq":
-					conditions = append(conditions, fmt.Sprintf("upper(%v.%v) = upper(?)", tableName, scope.Quote(field.DBName)))
+					conditions = append(conditions, fmt.Sprintf("upper(%v.%v) = upper(?)", tableName, stmt.Quote(field.DBName)))
 					keywords = append(keywords, keyword)
 				case "start_with":
-					conditions = append(conditions, fmt.Sprintf("upper(%v.%v) like upper(?)", tableName, scope.Quote(field.DBName)))
+					conditions = append(conditions, fmt.Sprintf("upper(%v.%v) like upper(?)", tableName, stmt.Quote(field.DBName)))
 					keywords = append(keywords, keyword+"%")
 				case "end_with":
-					conditions = append(conditions, fmt.Sprintf("upper(%v.%v) like upper(?)", tableName, scope.Quote(field.DBName)))
+					conditions = append(conditions, fmt.Sprintf("upper(%v.%v) like upper(?)", tableName, stmt.Quote(field.DBName)))
 					keywords = append(keywords, "%"+keyword)
 				case "present":
-					conditions = append(conditions, fmt.Sprintf("%v.%v <> ?", tableName, scope.Quote(field.DBName)))
+					conditions = append(conditions, fmt.Sprintf("%v.%v <> ?", tableName, stmt.Quote(field.DBName)))
 					keywords = append(keywords, "")
 				case "blank":
-					conditions = append(conditions, fmt.Sprintf("%v.%v = ? OR %v.%v IS NULL", tableName, scope.Quote(field.DBName), tableName, scope.Quote(field.DBName)))
+					conditions = append(conditions, fmt.Sprintf("%v.%v = ? OR %v.%v IS NULL", tableName, stmt.Quote(field.DBName), tableName, stmt.Quote(field.DBName)))
 					keywords = append(keywords, "")
 				default:
-					conditions = append(conditions, fmt.Sprintf("upper(%v.%v) like upper(?)", tableName, scope.Quote(field.DBName)))
+					conditions = append(conditions, fmt.Sprintf("upper(%v.%v) like upper(?)", tableName, stmt.Quote(field.DBName)))
 					keywords = append(keywords, "%"+keyword+"%")
 				}
 			}
@@ -392,15 +426,15 @@ func filterResourceByFields(res *Resource, filterFields []filterField, keyword s
 					keywords = append(keywords, num)
 					switch filterfield.Operation {
 					case "gt":
-						conditions = append(conditions, fmt.Sprintf("%v.%v > ?", tableName, scope.Quote(field.DBName)))
+						conditions = append(conditions, fmt.Sprintf("%v.%v > ?", tableName, stmt.Quote(field.DBName)))
 					case "lt":
-						conditions = append(conditions, fmt.Sprintf("%v.%v < ?", tableName, scope.Quote(field.DBName)))
+						conditions = append(conditions, fmt.Sprintf("%v.%v < ?", tableName, stmt.Quote(field.DBName)))
 					case "present":
-						conditions = append(conditions, fmt.Sprintf("%v.%v IS NOT NULL", tableName, scope.Quote(field.DBName)))
+						conditions = append(conditions, fmt.Sprintf("%v.%v IS NOT NULL", tableName, stmt.Quote(field.DBName)))
 					case "blank":
-						conditions = append(conditions, fmt.Sprintf("%v.%v IS NULL", tableName, scope.Quote(field.DBName)))
+						conditions = append(conditions, fmt.Sprintf("%v.%v IS NULL", tableName, stmt.Quote(field.DBName)))
 					default:
-						conditions = append(conditions, fmt.Sprintf("%v.%v = ?", tableName, scope.Quote(field.DBName)))
+						conditions = append(conditions, fmt.Sprintf("%v.%v = ?", tableName, stmt.Quote(field.DBName)))
 					}
 				}
 			}
@@ -410,38 +444,38 @@ func filterResourceByFields(res *Resource, filterFields []filterField, keyword s
 					keywords = append(keywords, f)
 					switch filterfield.Operation {
 					case "gt":
-						conditions = append(conditions, fmt.Sprintf("%v.%v > ?", tableName, scope.Quote(field.DBName)))
+						conditions = append(conditions, fmt.Sprintf("%v.%v > ?", tableName, stmt.Quote(field.DBName)))
 					case "lt":
-						conditions = append(conditions, fmt.Sprintf("%v.%v < ?", tableName, scope.Quote(field.DBName)))
+						conditions = append(conditions, fmt.Sprintf("%v.%v < ?", tableName, stmt.Quote(field.DBName)))
 					default:
-						conditions = append(conditions, fmt.Sprintf("%v.%v = ?", tableName, scope.Quote(field.DBName)))
+						conditions = append(conditions, fmt.Sprintf("%v.%v = ?", tableName, stmt.Quote(field.DBName)))
 					}
 				}
 			}
 
 			appendBool := func(field *gorm.Field) {
 				if value, err := strconv.ParseBool(keyword); err == nil {
-					conditions = append(conditions, fmt.Sprintf("%v.%v = ?", tableName, scope.Quote(field.DBName)))
+					conditions = append(conditions, fmt.Sprintf("%v.%v = ?", tableName, stmt.Quote(field.DBName)))
 					keywords = append(keywords, value)
 				} else {
 					switch keyword {
 					case "present":
-						conditions = append(conditions, fmt.Sprintf("%v.%v IS NOT NULL", tableName, scope.Quote(field.DBName)))
+						conditions = append(conditions, fmt.Sprintf("%v.%v IS NOT NULL", tableName, stmt.Quote(field.DBName)))
 					case "blank":
-						conditions = append(conditions, fmt.Sprintf("%v.%v IS NULL", tableName, scope.Quote(field.DBName)))
+						conditions = append(conditions, fmt.Sprintf("%v.%v IS NULL", tableName, stmt.Quote(field.DBName)))
 					}
 				}
 			}
 
 			appendTime := func(field *gorm.Field) {
 				if parsedTime, err := utils.ParseTime(keyword, context); err == nil {
-					conditions = append(conditions, fmt.Sprintf("%v.%v = ?", tableName, scope.Quote(field.DBName)))
+					conditions = append(conditions, fmt.Sprintf("%v.%v = ?", tableName, stmt.Quote(field.DBName)))
 					keywords = append(keywords, parsedTime)
 				}
 			}
 
 			appendStruct := func(field *gorm.Field) {
-				switch field.Field.Interface().(type) {
+				switch reflect.Zero(field.FieldType).Interface().(type) {
 				case time.Time, *time.Time:
 					appendTime(field)
 					// add support for sql null fields
@@ -458,9 +492,9 @@ func filterResourceByFields(res *Resource, filterFields []filterField, keyword s
 				}
 			}
 
-			if field, ok := currentScope.FieldByName(column); ok {
-				if field.IsNormal {
-					switch field.Field.Kind() {
+			if field, ok := currentScope.FieldsByName[column]; ok {
+				if field.FieldType.Comparable() {
+					switch field.FieldType.Kind() {
 					case reflect.String:
 						appendString(field)
 					case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
@@ -472,31 +506,34 @@ func filterResourceByFields(res *Resource, filterFields []filterField, keyword s
 					case reflect.Struct, reflect.Ptr:
 						appendStruct(field)
 					default:
-						conditions = append(conditions, fmt.Sprintf("%v.%v = ?", tableName, scope.Quote(field.DBName)))
+						conditions = append(conditions, fmt.Sprintf("%v.%v = ?", tableName, stmt.Quote(field.DBName)))
 						keywords = append(keywords, keyword)
 					}
-				} else if relationship := field.Relationship; relationship != nil {
-					switch relationship.Kind {
-					case "select_one", "select_many":
-						for _, foreignFieldName := range relationship.ForeignFieldNames {
-							generateConditions(filterField{
-								FieldName: strings.Join([]string{field.Name, foreignFieldName}, "."),
-								Operation: filterfield.Operation,
-							}, currentScope)
-						}
-					case "belongs_to":
-						for _, foreignFieldName := range relationship.ForeignFieldNames {
-							generateConditions(filterField{
-								FieldName: foreignFieldName,
-								Operation: filterfield.Operation,
-							}, currentScope)
-						}
-					case "many_to_many":
-						for _, foreignFieldName := range relationship.ForeignFieldNames {
-							generateConditions(filterField{
-								FieldName: strings.Join([]string{field.Name, foreignFieldName}, "."),
-								Operation: filterfield.Operation,
-							}, currentScope)
+				} else {
+					rel := field.Schema.Relationships.Relations[field.Name]
+					if rel != nil {
+						switch rel.Type {
+						case "select_one", "select_many":
+							for _, ref := range rel.References {
+								generateConditions(filterField{
+									FieldName: strings.Join([]string{field.Name, ref.ForeignKey.Name}, "."),
+									Operation: filterfield.Operation,
+								}, currentScope)
+							}
+						case gorm.BelongsTo:
+							for _, ref := range rel.References {
+								generateConditions(filterField{
+									FieldName: ref.ForeignKey.Name,
+									Operation: filterfield.Operation,
+								}, currentScope)
+							}
+						case gorm.Many2Many:
+							for _, ref := range rel.References {
+								generateConditions(filterField{
+									FieldName: strings.Join([]string{field.Name, ref.ForeignKey.Name}, "."),
+									Operation: filterfield.Operation,
+								}, currentScope)
+							}
 						}
 					}
 				}
@@ -505,7 +542,7 @@ func filterResourceByFields(res *Resource, filterFields []filterField, keyword s
 			}
 		}
 
-		scope := db.NewScope(res.Value)
+		scope, _ := gorm.Parse(res.Value)
 		for _, field := range filterFields {
 			generateConditions(field, scope)
 		}

@@ -74,18 +74,12 @@ func (selectOneConfig *SelectOneConfig) ConfigureQorMeta(metaor resource.Metaor)
 
 // ConfigureQORAdminFilter configure admin filter
 func (selectOneConfig *SelectOneConfig) ConfigureQORAdminFilter(filter *Filter) {
-	var (
-		structField *gorm.StructField
-		db          = filter.Resource.GetAdmin().DB.Session(&gorm.Session{})
-		value       = filter.Resource.Value
-	)
-	gorm.ParseWithDB(value, db)
-	if f, ok := db.Statement.Schema.FieldsByName[filter.Name]; ok {
+	var structField *gorm.StructField
+
+	schema, _ := gorm.Parse(filter.Resource.Value)
+	if f, ok := schema.FieldsByName[filter.Name]; ok {
 		structField = f
 	}
-	// if field, ok := filter.Resource.GetAdmin().DB.NewScope(filter.Resource.Value).FieldByName(filter.Name); ok {
-	// 	structField = field.StructField
-	// }
 
 	selectOneConfig.prepareDataSource(structField, filter.Resource, "!remote_data_filter")
 
@@ -181,14 +175,9 @@ func (selectOneConfig *SelectOneConfig) prepareDataSource(field *gorm.StructFiel
 			reflectValues := reflect.Indirect(reflect.ValueOf(searchResults))
 			for i := 0; i < reflectValues.Len(); i++ {
 				value := reflectValues.Index(i).Interface()
-				db := context.GetDB().Session(&gorm.Session{})
-				gorm.ParseWithDB(value, db)
-				results = append(results, []string{
-					fmt.Sprint(db.Statement.Schema.PrioritizedPrimaryField.ValueOf(reflect.ValueOf(value))),
-					utils.Stringify(value),
-				})
-				// scope := context.GetDB().NewScope(value)
-				// results = append(results, []string{fmt.Sprint(scope.PrimaryKeyValue()), utils.Stringify(value)})
+				schema, _ := gorm.Parse(value)
+				v, _ := schema.PrioritizedPrimaryField.ValueOf(reflect.ValueOf(value))
+				results = append(results, []string{fmt.Sprint(v), utils.Stringify(value)})
 			}
 			return
 		}

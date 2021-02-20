@@ -39,19 +39,16 @@ func (res *Resource) ToPrimaryQueryParams(value string, ctx *qor.Context) (query
 	}
 
 	var (
-		db    = ctx.GetDB().Session(&gorm.Session{})
-		fArgs = strings.Split(value, ",")
+		stmt      = ctx.GetDB().Session(&gorm.Session{}).Statement
+		fArgs     = strings.Split(value, ",")
+		schema, _ = gorm.Parse(res.Value)
 	)
-	if db.Statement.Parse(res.Value) != nil {
-		return
-	}
-	stmt := db.Statement
 
 	if len(fArgs) == len(res.PrimaryFields) {
 		var cond []string
 		for i, f := range res.PrimaryFields {
 			cond = append(cond, fmt.Sprintf("%v.%v = ?",
-				stmt.Quote(stmt.Table), stmt.Quote(f.DBName)))
+				stmt.Quote(schema.Table), stmt.Quote(f.DBName)))
 			args = append(args, fArgs[i])
 		}
 		query = strings.Join(cond, " AND ")
@@ -67,23 +64,17 @@ func (res *Resource) ToPrimaryQueryParams(value string, ctx *qor.Context) (query
 
 // ToPrimaryQueryParamsFromMetaValue generate query params based on MetaValues
 func (res *Resource) ToPrimaryQueryParamsFromMetaValue(metas *MetaValues, ctx *qor.Context) (query string, args []interface{}) {
-	var (
-		db   = ctx.GetDB().Session(&gorm.Session{})
-		cond []string
-	)
-	if db.Statement.Parse(res.Value) != nil {
-		return
-	}
-
+	var cond []string
 	if metas == nil {
 		return
 	}
 
-	stmt := db.Statement
+	stmt := ctx.GetDB().Statement
+	schema, _ := gorm.Parse(res.Value)
 	for _, f := range res.PrimaryFields {
 		if mf := metas.Get(f.Name); mf != nil {
 			cond = append(cond, fmt.Sprintf("%v.%v = ?",
-				stmt.Quote(stmt.Table), stmt.Quote(f.DBName)))
+				stmt.Quote(schema.Table), stmt.Quote(f.DBName)))
 			args = append(args, utils.ToString(mf.Value))
 		}
 	}
@@ -126,7 +117,12 @@ func (res *Resource) findManyHandler(result interface{}, context *qor.Context) e
 		if _, ok := db.Get("qor:getting_total_count"); ok {
 			_result := new(int64)
 			err := context.GetDB().Count(_result).Error
-			*(result).(*int64) = *_result
+			switch result.(type) {
+			case *int:
+				*(result).(*int) = int(*_result)
+			case *int64:
+				*(result).(*int64) = *_result
+			}
 			return err
 		}
 		return context.GetDB().Set("gorm:order_by_primary_key", "DESC").Find(result).Error
@@ -136,16 +132,13 @@ func (res *Resource) findManyHandler(result interface{}, context *qor.Context) e
 }
 
 func (res *Resource) saveHandler(result interface{}, ctx *qor.Context) error {
-	var db = ctx.GetDB().Session(&gorm.Session{})
-	if e := db.Statement.Parse(res.Value); e != nil {
-		return e
-	}
-	_, zero := db.Statement.Schema.PrioritizedPrimaryField.ValueOf(reflect.ValueOf(res.Value))
+	schema, _ := gorm.Parse(res.Value)
+	_, zero := schema.PrioritizedPrimaryField.ValueOf(reflect.ValueOf(res.Value))
 
 	if (zero &&
 		res.HasPermission(roles.Create, ctx)) || // has create permission
 		res.HasPermission(roles.Update, ctx) { // has update permission
-		return db.Save(result).Error
+		return ctx.GetDB().Save(result).Error
 	}
 	return roles.ErrPermissionDenied
 }

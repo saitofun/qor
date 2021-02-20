@@ -3,7 +3,7 @@ package admin
 import (
 	"testing"
 
-	"github.com/qor/qor"
+	"github.com/saitofun/qor/qor"
 )
 
 func generateResourceMenu(resource *Resource) *Menu {

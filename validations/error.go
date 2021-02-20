@@ -21,7 +21,7 @@ type Error struct {
 
 // Label is a label including model type, primary key and column name
 func (e Error) Label() string {
-	schema, _ := gorm.ModelToSchema(e.Resource)
+	schema, _ := gorm.Parse(e.Resource)
 	primary, _ := schema.PrioritizedPrimaryField.ValueOf(reflect.ValueOf(e.Resource))
 	return fmt.Sprintf("%v_%v_%v", schema.ModelType.Name(), primary, e.Column)
 }

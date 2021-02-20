@@ -2,6 +2,7 @@ package admin_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -13,6 +14,7 @@ import (
 	"testing"
 
 	. "github.com/saitofun/qor/admin/tests/dummy"
+	"github.com/saitofun/qor/gorm"
 )
 
 func TestCreateRecord(t *testing.T) {
@@ -26,7 +28,8 @@ func TestCreateRecord(t *testing.T) {
 			t.Errorf("Create request should be processed successfully")
 		}
 
-		if db.First(&User{}, "name = ?", "create_record").RecordNotFound() {
+		db.First(&User{}, "name = ?", "create_record")
+		if errors.Is(db.Error, gorm.ErrRecordNotFound) {
 			t.Errorf("User should be created successfully")
 		}
 	} else {
@@ -49,11 +52,12 @@ func TestCreateBelongsToRecord(t *testing.T) {
 		}
 
 		var user User
-		if db.First(&user, "name = ?", name).RecordNotFound() {
+		if errors.Is(db.First(&user, "name = ?", name).Error, gorm.ErrRecordNotFound) {
 			t.Errorf("User should be created successfully")
 		}
-
-		if db.Model(&user).Related(&user.CreditCard).RecordNotFound() || user.CreditCard.Number != "1234567890" {
+		err := db.Model(&user).Association("CreditCard").Find(&user.CreditCard)
+		if errors.Is(err, gorm.ErrRecordNotFound) ||
+			user.CreditCard.Number != "1234567890" {
 			t.Errorf("Embedded struct should be created successfully")
 		}
 	} else {
@@ -78,15 +82,15 @@ func TestCreateHasManyRecord(t *testing.T) {
 		}
 
 		var user User
-		if db.First(&user, "name = ?", name).RecordNotFound() {
+		if errors.Is(db.First(&user, "name = ?", name).Error, gorm.ErrRecordNotFound) {
 			t.Errorf("User should be created successfully")
 		}
 
-		if db.First(&Address{}, "user_id = ? and address1 = ?", user.ID, "address_1").RecordNotFound() {
+		if errors.Is(db.First(&Address{}, "user_id = ? and address1 = ?", user.ID, "address_1").Error, gorm.ErrRecordNotFound) {
 			t.Errorf("Address 1 should be created successfully")
 		}
 
-		if db.First(&Address{}, "user_id = ? and address1 = ?", user.ID, "address_2").RecordNotFound() {
+		if errors.Is(db.First(&Address{}, "user_id = ? and address1 = ?", user.ID, "address_2").Error, gorm.ErrRecordNotFound) {
 			t.Errorf("Address 2 should be created successfully")
 		}
 
@@ -116,24 +120,24 @@ func TestCreateHasManyRecordWithOrder(t *testing.T) {
 		}
 
 		var user User
-		if db.First(&user, "name = ?", name).RecordNotFound() {
+		if errors.Is(db.First(&user, "name = ?", name).Error, gorm.ErrRecordNotFound) {
 			t.Errorf("User should be created successfully")
 		}
 
 		var address0, address1, address2, address11 Address
-		if db.First(&address0, "user_id = ? and address1 = ?", user.ID, "address_0").RecordNotFound() {
+		if errors.Is(db.First(&address0, "user_id = ? and address1 = ?", user.ID, "address_0").Error, gorm.ErrRecordNotFound) {
 			t.Errorf("Address 0 should be created successfully")
 		}
 
-		if db.First(&address1, "user_id = ? and address1 = ?", user.ID, "address_1").RecordNotFound() {
+		if errors.Is(db.First(&address1, "user_id = ? and address1 = ?", user.ID, "address_1").Error, gorm.ErrRecordNotFound) {
 			t.Errorf("Address 1 should be created successfully")
 		}
 
-		if db.First(&address2, "user_id = ? and address1 = ?", user.ID, "address_2").RecordNotFound() {
+		if errors.Is(db.First(&address2, "user_id = ? and address1 = ?", user.ID, "address_2").Error, gorm.ErrRecordNotFound) {
 			t.Errorf("Address 2 should be created successfully")
 		}
 
-		if db.First(&address11, "user_id = ? and address1 = ?", user.ID, "address_11").RecordNotFound() {
+		if errors.Is(db.First(&address11, "user_id = ? and address1 = ?", user.ID, "address_11").Error, gorm.ErrRecordNotFound) {
 			t.Errorf("Address 11 should be created successfully")
 		}
 
@@ -169,12 +173,12 @@ func TestCreateManyToManyRecord(t *testing.T) {
 		}
 
 		var user User
-		if db.First(&user, "name = ?", name).RecordNotFound() {
+		if errors.Is(db.First(&user, "name = ?", name).Error, gorm.ErrRecordNotFound) {
 			t.Errorf("User should be created successfully")
 		}
 
 		var languages []Language
-		db.Model(&user).Related(&languages, "Languages")
+		db.Model(&user).Association("Languages").Find(&languages)
 
 		if len(languages) != 2 {
 			t.Errorf("User should have two languages after create")
@@ -210,7 +214,7 @@ func TestUploadAttachment(t *testing.T) {
 			}
 
 			var user User
-			if db.First(&user, "name = ?", name).RecordNotFound() {
+			if errors.Is(db.First(&user, "name = ?", name).Error, gorm.ErrRecordNotFound) {
 				t.Errorf("User should be created successfully")
 			}
 
@@ -244,19 +248,19 @@ func TestCreateRecordWithJSON(t *testing.T) {
 		}
 
 		var user User
-		if db.First(&user, "name = ?", name).RecordNotFound() {
+		if errors.Is(db.First(&user, "name = ?", name).Error, gorm.ErrRecordNotFound) {
 			t.Errorf("User should be created successfully")
 		}
 
-		if db.Model(&user).Related(&user.CreditCard).RecordNotFound() || user.CreditCard.Number != "987654321" {
+		if errors.Is(db.Model(&user).Association("CreditCard").Find(&user.CreditCard), gorm.ErrRecordNotFound) || user.CreditCard.Number != "987654321" {
 			t.Errorf("Embedded struct should be created successfully")
 		}
 
-		if db.First(&Address{}, "user_id = ? and address1 = ?", user.ID, "address_1").RecordNotFound() {
+		if errors.Is(db.First(&Address{}, "user_id = ? and address1 = ?", user.ID, "address_1").Error, gorm.ErrRecordNotFound) {
 			t.Errorf("Address 1 should be created successfully")
 		}
 
-		if db.First(&Address{}, "user_id = ? and address1 = ?", user.ID, "address_2").RecordNotFound() {
+		if errors.Is(db.First(&Address{}, "user_id = ? and address1 = ?", user.ID, "address_2").Error, gorm.ErrRecordNotFound) {
 			t.Errorf("Address 2 should be created successfully")
 		}
 
@@ -266,7 +270,7 @@ func TestCreateRecordWithJSON(t *testing.T) {
 		}
 
 		var languages []Language
-		db.Model(&user).Related(&languages, "Languages")
+		db.Model(&user).Association("Languages").Find(&languages)
 
 		if len(languages) != 2 {
 			t.Errorf("User should have two languages after create")

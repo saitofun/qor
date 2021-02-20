@@ -92,7 +92,7 @@ func (language *Language) Validate(db *gorm.DB) error {
 }
 
 func init() {
-	db = test_db.TestDB()
+	db = test_db.NewTestDB()
 	validations.RegisterCallbacks(db)
 	tables := []interface{}{&User{}, &Company{}, &CreditCard{}, &Address{}, &Language{}}
 	for _, table := range tables {
