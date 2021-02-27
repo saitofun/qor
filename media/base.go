@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"text/template"
@@ -163,12 +164,15 @@ func (b Base) GetURLTemplate(option *Option) (path string) {
 
 var urlReplacer = regexp.MustCompile("(\\s|\\+)+")
 
-func getFuncMap(scope *gorm.Scope, field *gorm.Field, filename string) template.FuncMap {
+func getFuncMap(db *gorm.DB, field *gorm.Field, filename string) template.FuncMap {
 	hash := func() string { return strings.Replace(time.Now().Format("20060102150405.000000"), ".", "", -1) }
 	shortHash := func() string { return time.Now().Format("20060102150405") }
+	schema, _ := gorm.Parse(db.Statement.Model)
+	pv, _ := schema.PrioritizedPrimaryField.ValueOf(reflect.ValueOf(db.Statement.Model))
+
 	return template.FuncMap{
-		"class":       func() string { return inflection.Plural(utils.ToParamString(scope.GetModelStruct().ModelType.Name())) },
-		"primary_key": func() string { return fmt.Sprintf("%v", scope.PrimaryKeyValue()) },
+		"class":       func() string { return inflection.Plural(utils.ToParamString(schema.ModelType.Name())) },
+		"primary_key": func() string { return fmt.Sprintf("%v", pv) },
 		"column":      func() string { return strings.ToLower(field.Name) },
 		"filename":    func() string { return filename },
 		"basename":    func() string { return strings.TrimSuffix(path.Base(filename), path.Ext(filename)) },
@@ -185,12 +189,12 @@ func getFuncMap(scope *gorm.Scope, field *gorm.Field, filename string) template.
 }
 
 // GetURL get default URL for a model based on its options
-func (b Base) GetURL(option *Option, scope *gorm.Scope, field *gorm.Field, templater URLTemplater) string {
+func (b Base) GetURL(option *Option, db *gorm.DB, field *gorm.Field, templater URLTemplater) string {
 	if path := templater.GetURLTemplate(option); path != "" {
-		tmpl := template.New("").Funcs(getFuncMap(scope, field, b.GetFileName()))
+		tmpl := template.New("").Funcs(getFuncMap(db, field, b.GetFileName()))
 		if tmpl, err := tmpl.Parse(path); err == nil {
 			var result = bytes.NewBufferString("")
-			if err := tmpl.Execute(result, scope.Value); err == nil {
+			if err := tmpl.Execute(result, db.Statement.Model); err == nil {
 				return result.String()
 			}
 		}

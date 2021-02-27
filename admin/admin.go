@@ -2,6 +2,7 @@ package admin
 
 import (
 	"html/template"
+	"os"
 	"path/filepath"
 	"reflect"
 
@@ -98,6 +99,7 @@ func (admin *Admin) SetAssetFS(assetFS assetfs.Interface) {
 	admin.AssetFS = assetFS
 	globalAssetFSes = append(globalAssetFSes, assetFS)
 
+	admin.AssetFS.RegisterPath(filepath.Join(os.Getenv("WEB_ROOT"), "views"))
 	admin.AssetFS.RegisterPath(filepath.Join(utils.AppRoot, "app/views/qor"))
 	admin.RegisterViewPath("github.com/saitofun/qor/admin/views")
 

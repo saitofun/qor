@@ -14,10 +14,12 @@ var (
 	MediaLibraryURL = ""
 )
 
-func cropField(field *gorm.Field, scope *gorm.Scope) (cropped bool) {
-	if field.Field.CanAddr() {
+func cropField(field *gorm.Field, db *gorm.DB) (cropped bool) {
+	fv, _ := field.ValueOf(reflect.ValueOf(db.Statement.Model))
+	fval := reflect.ValueOf(fv)
+	if fval.CanAddr() {
 		// TODO Handle scanner
-		if media, ok := field.Field.Addr().Interface().(Media); ok && !media.Cropped() {
+		if media, ok := fval.Addr().Interface().(Media); ok && !media.Cropped() {
 			option := parseTagOption(field.Tag.Get("media_library"))
 			if MediaLibraryURL != "" {
 				option.Set("url", MediaLibraryURL)
@@ -32,14 +34,14 @@ func cropField(field *gorm.Field, scope *gorm.Scope) (cropped bool) {
 				}
 
 				if err != nil {
-					scope.Err(err)
+					db.AddError(err)
 					return false
 				}
 
 				media.Cropped(true)
 
-				if url := media.GetURL(option, scope, field, media); url == "" {
-					scope.Err(errors.New("invalid URL"))
+				if url := media.GetURL(option, db, field, media); url == "" {
+					db.AddError(errors.New("invalid URL"))
 				} else {
 					result, _ := json.Marshal(map[string]string{"Url": url})
 					media.Scan(string(result))
@@ -51,7 +53,7 @@ func cropField(field *gorm.Field, scope *gorm.Scope) (cropped bool) {
 					for _, handler := range mediaHandlers {
 						if handler.CouldHandle(media) {
 							mediaFile.Seek(0, 0)
-							if scope.Err(handler.Handle(media, mediaFile, option)) == nil {
+							if db.AddError(handler.Handle(media, mediaFile, option)) == nil {
 								handled = true
 							}
 						}
@@ -59,7 +61,7 @@ func cropField(field *gorm.Field, scope *gorm.Scope) (cropped bool) {
 
 					// Save File
 					if !handled {
-						scope.Err(media.Store(media.URL(), option, mediaFile))
+						db.AddError(media.Store(media.URL(), option, mediaFile))
 					}
 				}
 				return true
@@ -69,33 +71,38 @@ func cropField(field *gorm.Field, scope *gorm.Scope) (cropped bool) {
 	return false
 }
 
-func saveAndCropImage(isCreate bool) func(scope *gorm.Scope) {
-	return func(scope *gorm.Scope) {
-		if !scope.HasError() {
+func saveAndCropImage(isCreate bool) func(db *gorm.DB) {
+	return func(db *gorm.DB) {
+		if db.Error == nil {
 			var updateColumns = map[string]interface{}{}
+			var dbVal = db.Statement.Model
+			var dbValue = reflect.ValueOf(dbVal)
 
 			// Handle SerializableMeta
-			if value, ok := scope.Value.(serializable_meta.SerializableMetaInterface); ok {
+			if value, ok := dbVal.(serializable_meta.SerializableMetaInterface); ok {
 				var (
 					isCropped        bool
 					handleNestedCrop func(record interface{})
 				)
 
 				handleNestedCrop = func(record interface{}) {
-					newScope := scope.New(record)
-					for _, field := range newScope.Fields() {
-						if cropField(field, scope) {
+					newSchema, _ := gorm.Parse(record)
+					recordValue := reflect.ValueOf(record)
+					for _, field := range newSchema.Fields {
+						if cropField(field, db) {
 							isCropped = true
 							continue
 						}
+						fv, _ := field.ValueOf(recordValue)
+						fVal := reflect.ValueOf(fv)
 
-						if reflect.Indirect(field.Field).Kind() == reflect.Struct {
-							handleNestedCrop(field.Field.Addr().Interface())
+						if reflect.Indirect(fVal).Kind() == reflect.Struct {
+							handleNestedCrop(fVal.Addr().Interface())
 						}
 
-						if reflect.Indirect(field.Field).Kind() == reflect.Slice {
-							for i := 0; i < reflect.Indirect(field.Field).Len(); i++ {
-								handleNestedCrop(reflect.Indirect(field.Field).Index(i).Addr().Interface())
+						if reflect.Indirect(fVal).Kind() == reflect.Slice {
+							for i := 0; i < reflect.Indirect(fVal).Len(); i++ {
+								handleNestedCrop(reflect.Indirect(fVal).Index(i).Addr().Interface())
 							}
 						}
 					}
@@ -109,14 +116,15 @@ func saveAndCropImage(isCreate bool) func(scope *gorm.Scope) {
 			}
 
 			// Handle Normal Field
-			for _, field := range scope.Fields() {
-				if cropField(field, scope) && isCreate {
-					updateColumns[field.DBName] = field.Field.Interface()
+			for _, field := range db.Statement.Schema.Fields {
+				if cropField(field, db) && isCreate {
+					fv, _ := field.ValueOf(dbValue)
+					updateColumns[field.DBName] = fv
 				}
 			}
 
-			if !scope.HasError() && len(updateColumns) != 0 {
-				scope.Err(scope.NewDB().Model(scope.Value).UpdateColumns(updateColumns).Error)
+			if db.Error == nil && len(updateColumns) != 0 {
+				db.AddError(db.Session(&gorm.Session{}).Model(dbVal).UpdateColumns(updateColumns).Error)
 			}
 		}
 	}

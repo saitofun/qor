@@ -15,7 +15,7 @@ type Media interface {
 	Value() (driver.Value, error)
 
 	GetURLTemplate(*Option) string
-	GetURL(option *Option, scope *gorm.Scope, field *gorm.Field, templater URLTemplater) string
+	GetURL(option *Option, db *gorm.DB, field *gorm.Field, templater URLTemplater) string
 
 	GetFileHeader() FileHeader
 	GetFileName() string

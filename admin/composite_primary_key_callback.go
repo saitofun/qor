@@ -43,11 +43,13 @@ func (admin Admin) registerCompositePrimaryKeyCallback() {
 var DisableCompositePrimaryKeyMode = "composite_primary_key:query:disable"
 
 func compositePrimaryKeyQueryCallback(db *gorm.DB) {
-	if value, ok := db.Get(DisableCompositePrimaryKeyMode); ok && value != "" {
+	value, ok := db.Get(DisableCompositePrimaryKeyMode)
+	if value == nil || ok && value != "" {
 		return
 	}
 	stmt := db.Statement
-	for _, pf := range stmt.Schema.PrimaryFields {
+	schema, _ := gorm.Parse(value)
+	for _, pf := range schema.PrimaryFields {
 		pk := fmt.Sprintf("[primary_key[%v_%v]", stmt.Table, pf.DBName)
 		if v, ok := db.Get(pk); ok && v != "" {
 			db = db.Where(clause.Eq{Column: pf.DBName, Value: v})
