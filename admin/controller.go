@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"path"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"time"
 
@@ -76,6 +77,11 @@ func (ac *Controller) Create(context *Context) {
 	status := http.StatusCreated
 	result := res.NewStruct()
 	if context.AddError(res.Decode(context.Context, result)); !context.HasError() {
+		schema, _ := gorm.Parse(result)
+		pf := schema.PrioritizedPrimaryField
+		if _, zero := pf.ValueOf(reflect.ValueOf(result)); !zero {
+			reflect.ValueOf(result).Elem().FieldByName(pf.Name).Set(reflect.Zero(pf.FieldType))
+		}
 		context.AddError(res.CallSave(result, context.Context))
 	}
 
