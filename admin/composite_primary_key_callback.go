@@ -34,7 +34,7 @@ func (admin Admin) registerCompositePrimaryKeyCallback() {
 		proc := db.Callback().Query().Before("gorm:query")
 		proc.Register(name, compositePrimaryKeyQueryCallback)
 
-		proc = db.Callback().Row().Before("gorm:row")
+		proc = db.Callback().Row().Before("gorm:row_query")
 		proc.Register(name, compositePrimaryKeyQueryCallback)
 	}
 }

@@ -28,7 +28,9 @@ import (
 // FuncMap funcs map for current context
 func (context *Context) FuncMap() template.FuncMap {
 	funcMap := template.FuncMap{
-		"current_user":         func() qor.CurrentUser { return context.CurrentUser },
+		"current_user": func() qor.CurrentUser {
+			return context.CurrentUser
+		},
 		"get_resource":         context.Admin.GetResource,
 		"new_resource_context": context.NewResourceContext,
 		"is_new_record":        context.isNewRecord,
@@ -45,10 +47,14 @@ func (context *Context) FuncMap() template.FuncMap {
 		},
 		"pagination": context.Pagination,
 		"escape":     html.EscapeString,
-		"raw":        func(str string) template.HTML { return template.HTML(utils.HTMLSanitizer.Sanitize(str)) },
-		"unsafe_raw": func(str string) template.HTML { return template.HTML(str) },
-		"equal":      equal,
-		"stringify":  utils.Stringify,
+		"raw": func(str string) template.HTML {
+			return template.HTML(utils.HTMLSanitizer.Sanitize(str))
+		},
+		"unsafe_raw": func(str string) template.HTML {
+			return template.HTML(str)
+		},
+		"equal":     equal,
+		"stringify": utils.Stringify,
 		"lower": func(value interface{}) string {
 			return strings.ToLower(fmt.Sprint(value))
 		},
@@ -129,15 +135,17 @@ func (context *Context) FuncMap() template.FuncMap {
 			return context.Admin.T(context.Context, key, placeholder)
 		},
 
-		"url_for":            context.URLFor,
-		"link_to":            context.linkTo,
-		"patch_current_url":  context.patchCurrentURL,
-		"patch_url":          context.patchURL,
-		"join_current_url":   context.joinCurrentURL,
-		"join_url":           context.joinURL,
-		"logout_url":         context.logoutURL,
-		"search_center_path": func() string { return path.Join(context.Admin.router.Prefix, "!search") },
-		"new_resource_path":  context.newResourcePath,
+		"url_for":           context.URLFor,
+		"link_to":           context.linkTo,
+		"patch_current_url": context.patchCurrentURL,
+		"patch_url":         context.patchURL,
+		"join_current_url":  context.joinCurrentURL,
+		"join_url":          context.joinURL,
+		"logout_url":        context.logoutURL,
+		"search_center_path": func() string {
+			return path.Join(context.Admin.router.Prefix, "!search")
+		},
+		"new_resource_path": context.newResourcePath,
 		"defined_resource_show_page": func(res *Resource) bool {
 			if res != nil {
 				if r := context.Admin.GetResource(utils.ModelType(res.Value).String()); r != nil {
@@ -746,7 +754,9 @@ func (context *Context) editSections(resources ...*Resource) []*Section {
 
 func (context *Context) newSections(resources ...*Resource) []*Section {
 	res := context.getResource(resources...)
-	return res.allowedSections(res.NewAttrs(), context, roles.Create)
+	ret := res.allowedSections(res.NewAttrs(), context, roles.Create)
+	// fmt.Println(ret)
+	return ret
 }
 
 func (context *Context) showSections(resources ...*Resource) []*Section {
